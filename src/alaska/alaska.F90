@@ -138,6 +138,8 @@ if (king() .or. HF_Force) then
 
   if (NO_NUC .or. ((Columbus == 1) .and. (colgradmode == 3))) then
     write(u6,*) 'Skipping Nuclear Charge Contribution'
+    iRout = 33 !! as done in DrvN1
+    iPrint = nPrint(iRout)
   else
     call DrvN1(Grad,Temp,lDisp(0))
     if (iPrint >= 15) then
