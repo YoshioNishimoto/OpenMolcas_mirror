@@ -11,10 +11,13 @@
 * Copyright (C) 2021, Yoshio Nishimoto                                 *
 ************************************************************************
       Subroutine OLagVVVO(iSym,DPT2AO,DPT2CAO,FPT2AO,FPT2CAO,T2AO,
-     *                    DIA,DI,FIFA,FIMO,A_PT2,NumCho)
+     *                    DIA,DI,FIFA,FIMO,A_PT2,MaxVec_PT2)
       USE iSD_data
       USE CHOVEC_IO
       use caspt2_gradient, only: LuGAMMA,LuCMOPT2,LuAPT2
+#ifdef _MOLCAS_MPP_
+      USE Para_Info, ONLY: Is_Real_Par
+#endif
 C
       IMPLICIT REAL*8 (A-H,O-Z)
 #include "rasdim.fh"
@@ -56,14 +59,14 @@ C
         !! No need to save CMOPT2. Just save A_PT2 and B_PT2.
         !! First, save A_PT2 in LuCMOPT2
         If (IFMSCOUP.and.jState.ne.1) Then
-          Call GetMem('WRK3','ALLO','Real',ipWRK3,NumCho*NumCho)
+          Call GetMem('WRK3','ALLO','Real',ipWRK3,MaxVec_PT2**2)
 
           ! read A_PT2 from LUAPT2
           id = 0
-          call ddafile(LUAPT2, 2, Work(ipWRK3), NumCho**2, id)
+          call ddafile(LUAPT2, 2, Work(ipWRK3), MaxVec_PT2**2, id)
 
-          Call DaXpY_(NumCho*NumCho,1.0D+00,Work(ipWRK3),1,A_PT2,1)
-          Call GetMem('WRK3','FREE','Real',ipWRK3,NumCho*NumCho)
+          Call DaXpY_(MaxVec_PT2**2,1.0D+00,Work(ipWRK3),1,A_PT2,1)
+          Call GetMem('WRK3','FREE','Real',ipWRK3,MaxVec_PT2**2)
         End If
 
         ! For SS-CASPT2 I should write A_PT2 on disk only
@@ -71,7 +74,7 @@ C
         if (jState.eq.iRlxRoot .or. nStLag.gt.1) then
           ! write A_PT2 in LUAPT2
           id = 0
-          call ddafile(LUAPT2,1,A_PT2,NumCho**2,id)
+          call ddafile(LUAPT2,1,A_PT2,MaxVec_PT2**2,id)
         end if
 
         ! rewind LuGamma
@@ -254,6 +257,12 @@ C     call sqprt(work(ipvLag),nbast)
      *            1.0D+00,Work(ipOLAG+nOrbA*nFro(iSymA)),nOrbA)
 C     write(6,*) "olag after vvvo"
 C     call sqprt(work(ipolag),nbast)
+C
+#ifdef _MOLCAS_MPP_
+      If (DoCholesky .and. Is_Real_Par()) Then
+        CALL GADSUM (Work(ipOLag),nOLag)
+      End If
+#endif
 C
       Call GetMem('WRK1','Free','Real',ipWRK1,nBasT*nBasT)
       Call GetMem('WRK2','Free','Real',ipWRK2,nBasT*nBasT)

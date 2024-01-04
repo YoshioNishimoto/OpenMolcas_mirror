@@ -751,6 +751,9 @@ C
       Subroutine XMS_Grad(CLag,H0,U0,UEFF,OMGDER)
 C
       use caspt2_gradient, only: do_nac, do_csf, iRoot1, iRoot2
+#ifdef _MOLCAS_MPP_
+      USE Para_Info, ONLY: Is_Real_Par
+#endif
       Implicit Real*8 (A-H,O-Z)
 C
 #include "rasdim.fh"
@@ -919,8 +922,6 @@ C
             Call Dens1T_RPT2(Work(ipCI1),Work(ipCI2),
      *                       Work(ipSGM1),Work(ipTG1))
             Scal = SLag(iStat+nState*(jStat-1))*2.0d+00
-C         write (*,*) "istat,jstat=",istat,jstat
-C         write (*,*) "scal = ", scal
             Call DaXpY_(nAshT**2,Scal,Work(ipTG1),1,Work(ipG1),1)
           End Do
         End Do
@@ -1071,6 +1072,12 @@ C
         !! 2) Implicit CI derivative
         Call CLagEig(.False.,Work(ipCLag),Work(ipRDMEIG))
 C
+#ifdef _MOLCAS_MPP_
+        if (is_real_par()) then
+          call GADSUM(Work(ipCLag),nConf*nState)
+        end if
+#endif
+C
         Call GetMem('RDMEIG','FREE','REAL',ipRDMEIG,nAshT**2)
         Call GetMem('G1    ','FREE','REAL',ipG1    ,nAshT**2)
 C
@@ -1121,6 +1128,9 @@ C-----------------------------------------------------------------------
 C
       !! From poly3
       SUBROUTINE CLagEigT(CLag,RDMEIG,SLag,EINACT)
+#ifdef _MOLCAS_MPP_
+      USE Para_Info, ONLY: nProcs, Is_Real_Par
+#endif
 C
       IMPLICIT REAL*8 (A-H,O-Z)
 #include "rasdim.fh"
@@ -1156,6 +1166,11 @@ C
           Call Poly1_CLagT(Work(LCI1),Work(LCI2),
      *                     CLag(1,iStat),CLag(1,jStat),RDMEIG,Scal)
           !! Inactive terms
+#ifdef _MOLCAS_MPP_
+          !! The inactive contributions are computed in all processes,
+          !! whereas GADSUM will be done later, so divide
+          if (is_real_par()) Scal=Scal/DBLE(nProcs)
+#endif
           Call DaXpY_(nConf,Scal*EINACT,Work(LCI1),1,CLag(1,jStat),1)
           Call DaXpY_(nConf,Scal*EINACT,Work(LCI2),1,CLag(1,iStat),1)
         End Do
@@ -1352,6 +1367,9 @@ C
       Subroutine CnstInt(Mode,INT1,INT2)
 C
       Use CHOVEC_IO
+#ifdef _MOLCAS_MPP_
+      USE Para_Info, ONLY: Is_Real_Par
+#endif
 C
       Implicit Real*8 (A-H,O-Z)
 C
@@ -1549,6 +1567,10 @@ C     call sqprt(fimo,12)
       End Do
       End If
 C
+#ifdef _MOLCAS_MPP_
+      if (is_real_par()) CALL GADSUM (INT2,nAshT**4)
+#endif
+C
       Do IT = 1, nAshT
         Do iU = 1, nAshT
           Do iX = 1, nAshT
@@ -1689,8 +1711,8 @@ C
 C-----------------------------------------------------------------------
 C
       SUBROUTINE DENS1T_RPT2 (CI1,CI2,SGM1,G1)
-#ifdef _MOLCAS_MPP_
-      USE Para_Info, ONLY: Is_Real_Par, King
+#if defined (_MOLCAS_MPP_) && ! defined (_GA_)
+      USE Para_Info, ONLY: nProcs, Is_Real_Par, King
 #endif
       use caspt2_output, only:iPrGlb,debug
       IMPLICIT NONE

@@ -61,8 +61,7 @@ C       if (icase.ne.12 .and. icase.ne.13) cycle ! H
             CALL RHS_ALLO(NIN,NIS,lg_V2)
             CALL RHS_READ_SR(lg_V2,ICASE,ISYM,JVEC)
             If (do_grad) Then
-              If (Scal.ne.1.0D+00)
-     *          Call DScal_(NIN*NIS,Scal,Work(lg_V1),1)
+              CALL RHS_SCAL(NIN,NIS,lg_V1,SCAL)
               if (sigma_p_epsilon .ne. 0.0d+00) then
                 !! derivative of the numerator
                 nAS = nASUP(iSym,iCase)
@@ -76,7 +75,7 @@ C       if (icase.ne.12 .and. icase.ne.13) cycle ! H
                 Call GETMEM('LBD','FREE','REAL',LBD,nAS)
                 Call GETMEM('LID','FREE','REAL',LID,nIS)
               end if
-              Call DaXpY_(nIN*nIS,1.0D+00,Work(lg_V2),1,Work(lg_V1),1)
+              CALL RHS_DAXPY(NIN,NIS,1.0D+00,lg_V2,lg_V1)
               CALL RHS_READ_SR(lg_V2,ICASE,ISYM,IVEC)
             End If
           END IF

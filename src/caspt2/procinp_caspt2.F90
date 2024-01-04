@@ -18,7 +18,7 @@ subroutine procinp_caspt2
                            ipea_shift, imag_shift, real_shift
   use caspt2_gradient, only: do_grad, do_nac, do_csf, do_lindep, &
                              if_invar, iRoot1, iRoot2, if_invaria, &
-                             ConvInvar
+                             ConvInvar, if_ssdm
   use UnixInfo, only: SuperName
 #ifdef _MOLCAS_MPP_
   use Para_Info, only:Is_Real_Par, nProcs
@@ -37,7 +37,6 @@ subroutine procinp_caspt2
 #include "stdalloc.fh"
 #include "SysDef.fh"
 #include "chocaspt2.fh"
-#include "caspt2_grad.fh"
 
   integer(kind=iwp) :: iDummy
 
@@ -590,11 +589,13 @@ subroutine procinp_caspt2
                             'with density fitting or Cholesky decomposition.')
       call quit_onUserError
     end if
-#ifdef _MOLCAS_MPP_
-    ! for the time being no gradients with MPI
+
+#if defined (_MOLCAS_MPP_) && ! defined (_GA_)
+    ! for the time being no gradients without GA
+    ! Parallel CASPT2 gradient is implemented with some GA-specific subroutines
     if (nProcs > 1) then
       call warningMessage(2,'Analytic gradients not available'//  &
-                            ' in parallel executions.')
+                            ' without GA installed. Install GA and link.')
       call quit_onUserError
     end if
 #endif
@@ -609,9 +610,6 @@ subroutine procinp_caspt2
   ! requested numerical gradients in GATEWAY
   if ((isStructure() == 1)) then
     ! if MPI is enabled, analytic gradients only with one process
-#ifdef _MOLCAS_MPP_
-    if (nProcs == 1) then
-#endif
       ! check the hard constraints first
       if ((.not. DNG) .and. (nSym == 1)) then
         do_grad = .true.
@@ -621,9 +619,6 @@ subroutine procinp_caspt2
         if ((ipea_shift /= 0.0_wp) .and. (.not. ifChol)) do_grad = .false.
         if ((nState /= nRoots) .and. (.not. ifsadref)) do_grad = .false.
       end if
-#ifdef _MOLCAS_MPP_
-    end if
-#endif
   end if
 
   ! compute full unrelaxed density for gradients
@@ -695,9 +690,9 @@ subroutine procinp_caspt2
   !! array for SS- and MS-CASPT2 with state-averaged DM (with SADREF
   !! option) and XMS-CASPT2.
   if (IFSADREF .or. (nRoots == 1) .or. (IFXMS .and. (.not.IFDW))) then
-    IFSSDM = .false.
+    if_ssdm = .false.
   else
-    IFSSDM = .true.
+    if_ssdm = .true.
   end if
 
 end subroutine procinp_caspt2

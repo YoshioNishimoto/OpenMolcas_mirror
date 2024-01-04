@@ -18,9 +18,12 @@
 Subroutine SavGradParams(Mode,IDSAVGRD)
 
   use caspt2_gradient, only: LUGRAD, LUSTD, do_lindep, IDBoriMat, &
-                             NBUF1_GRAD
+                             NBUF1_GRAD, iTasks_grad, nTasks_grad
   use definitions, only: iwp,wp,byte
   use stdalloc, only: mma_allocate, mma_deallocate
+#ifdef _MOLCAS_MPP_
+  USE Para_Info, ONLY: Is_Real_Par, King
+#endif
 
   Implicit None
 
@@ -30,11 +33,20 @@ Subroutine SavGradParams(Mode,IDSAVGRD)
 #include "pt2_guga.fh"
 
 #include "WrkSpc.fh"
+#ifdef _MOLCAS_MPP_
+#include "global.fh"
+#include "mafdecls.fh"
+logical(kind=iwp) bStat
+#endif
 
   integer(kind=iwp), intent(in) :: Mode
   integer(kind=iwp), intent(inout) :: IDSAVGRD
 
-  integer(kind=iwp) :: IORW,ID,NIN,NAS,NIS,NNN,NMAX,ISYM,ICASE,iLUID
+  integer(kind=iwp) :: I,IORW,ID,NIN,NAS,NIS,NNN,NMAX,ISYM,ICASE,iLUID
+
+#ifdef _MOLCAS_MPP_
+  integer(kind=iwp) :: lg_ST,lg_S,lg_T,myRank,ISTA,IEND,JSTA,JEND,mV1,LDW,IDISK,LDM,NBLOCK
+#endif
 
   real(kind=wp), allocatable :: WRK1(:)
   integer(kind=iwp), allocatable :: IWRK1(:)
@@ -42,8 +54,13 @@ Subroutine SavGradParams(Mode,IDSAVGRD)
 
 ! character(len=80) :: Label
 
+  I=0
+
   !! Shift the address due to SavGradParams2
   If (IDSAVGRD == 0) IDSAVGRD = NSTATE + 3*NSTATE**2
+#ifdef _MOLCAS_MPP_
+  myRank = GA_NODEID()
+#endif
 
   !! Decide what to do
   If (Mode == 1) Then
@@ -63,23 +80,27 @@ Subroutine SavGradParams(Mode,IDSAVGRD)
 
   !! 2. RDMs
   !! - NG1, NG2, NG3
-  Call mma_allocate(IWRK1,5,Label='IWRK1')
+  Call mma_allocate(IWRK1,6,Label='IWRK1')
   If (IORW == 1) Then
     IWRK1(1) = NG1
     IWRK1(2) = NG2
     IWRK1(3) = NG3
     IWRK1(4) = NG3TOT
     IWRK1(5) = NBUF1_GRAD
-    CALL IDAFILE(LUGRAD,IORW,IWRK1,5,IDSAVGRD)
+    IWRK1(6) = nTasks_grad
+    CALL IDAFILE(LUGRAD,IORW,IWRK1,6,IDSAVGRD)
   Else If (IORW == 2) Then
-    CALL IDAFILE(LUGRAD,IORW,IWRK1,5,IDSAVGRD)
+    CALL IDAFILE(LUGRAD,IORW,IWRK1,6,IDSAVGRD)
     NG1    = IWRK1(1)
     NG2    = IWRK1(2)
     NG3    = IWRK1(3)
     NG3TOT = IWRK1(4)
     NBUF1_GRAD = IWRK1(5)
+    nTasks_grad= IWRK1(6)
+    iTasks_grad(:) = 0
   End If
   Call mma_deallocate(IWRK1)
+  CALL IDAFILE(LUGRAD,IORW,iTasks_grad,NASHT**2,IDSAVGRD)
 
   NMAX = 0
 
@@ -129,6 +150,18 @@ Subroutine SavGradParams(Mode,IDSAVGRD)
     WRK1(1) = EASUM
     CALL DDAFILE(LUGRAD,IORW,WRK1,1,IDSAVGRD)
   Else If (IORW == 2) Then
+#ifdef _MOLCAS_MPP_
+    if (is_real_par()) then
+      !! Reset, because NG3 can be different
+      !! STINI has been skipped
+      DO I=1,64
+        IADR10(I,1)=-1
+        IADR10(I,2)=0
+        CLAB10(I)='   EMPTY'
+      END DO
+      IADR10(1,1)=0
+    end if
+#endif
     !! NG3 index
     CALL I1DAFILE(LUGRAD,2,idxG3,6*NG3,IDSAVGRD)
     iLUID = 0
@@ -165,17 +198,74 @@ Subroutine SavGradParams(Mode,IDSAVGRD)
       NIS = NISUP(ISYM,ICASE)
       If (IORW == 1) Then
         !! Active overlap
+#ifdef _MOLCAS_MPP_
+        if (is_real_par() .and. (icase==1 .or. icase==4)) then
+          CALL PSBMAT_GETMEM('S',lg_S,NAS)
+          CALL PSBMAT_READ('S',iCase,iSym,lg_S,NAS)
+          CALL GA_Distribution (lg_S,myRank,ISTA,IEND,JSTA,JEND)
+          IF (ISTA.GT.0 .AND. JSTA.GT.0) THEN
+            CALL GA_Access (lg_S,ISTA,IEND,JSTA,JEND,mV1,LDM)
+            NBLOCK=LDM*(JEND-JSTA+1)
+            CALL DDAFILE(LUGRAD,1,DBL_MB(mV1),NBLOCK,IDSAVGRD)
+            CALL GA_Release (lg_S,ISTA,IEND,JSTA,JEND)
+          END IF
+          CALL PSBMAT_FREEMEM('S',lg_S,NAS)
+        else
+          ID = IDSMAT(ISYM,ICASE)
+          CALL DDAFILE(LUSBT,2,WRK1,NAS*(NAS+1)/2,ID)
+          CALL DDAFILE(LUGRAD,1,WRK1,NAS*(NAS+1)/2,IDSAVGRD)
+        end if
+#else
         ID = IDSMAT(ISYM,ICASE)
         CALL DDAFILE(LUSBT,2,WRK1,NAS*(NAS+1)/2,ID)
         CALL DDAFILE(LUGRAD,1,WRK1,NAS*(NAS+1)/2,IDSAVGRD)
+#endif
         !! ST matrix
+#ifdef _MOLCAS_MPP_
+        if (is_real_par() .and. (icase==1 .or. icase==4)) then
+          CALL GA_CREATE_STRIPED ('H',NAS,NIN,'STMAT',lg_ST)
+          CALL PSBMAT_READ ('M',iCase,iSym,lg_ST,NAS*NIN)
+          CALL GA_Distribution (lg_ST,myRank,ISTA,IEND,JSTA,JEND)
+          IF (ISTA.GT.0 .AND. JSTA.GT.0) THEN
+            CALL GA_Access (lg_ST,ISTA,IEND,JSTA,JEND,mV1,LDM)
+            NBLOCK=LDM*(JEND-JSTA+1)
+            CALL DDAFILE(LUGRAD,1,DBL_MB(mV1),NBLOCK,IDSAVGRD)
+            CALL GA_Release (lg_ST,ISTA,IEND,JSTA,JEND)
+          END IF
+          bStat = GA_Destroy (lg_ST)
+        else
+          ID = IDSTMAT(ISYM,ICASE)
+          CALL DDAFILE(LUSBT,2,WRK1,NAS*NIN,ID)
+          CALL DDAFILE(LUGRAD,1,WRK1,NAS*NIN,IDSAVGRD)
+        end if
+#else
         ID = IDSTMAT(ISYM,ICASE)
         CALL DDAFILE(LUSBT,2,WRK1,NAS*NIN,ID)
         CALL DDAFILE(LUGRAD,1,WRK1,NAS*NIN,IDSAVGRD)
+#endif
         !! Transformation matrix (eigenvector)
+#ifdef _MOLCAS_MPP_
+        if (is_real_par() .and. (icase==1 .or. icase==4)) then
+          CALL GA_CREATE_STRIPED ('H',NAS,NIN,'TMAT',lg_T)
+          CALL PSBMAT_READ ('T',iCase,iSym,lg_T,NAS*NIN)
+          CALL GA_Distribution (lg_T,myRank,ISTA,IEND,JSTA,JEND)
+          IF (ISTA.GT.0 .AND. JSTA.GT.0) THEN
+            CALL GA_Access (lg_T,ISTA,IEND,JSTA,JEND,mV1,LDM)
+            NBLOCK=LDM*(JEND-JSTA+1)
+            CALL DDAFILE(LUGRAD,1,DBL_MB(mV1),NBLOCK,IDSAVGRD)
+            CALL GA_Release (lg_T,ISTA,IEND,JSTA,JEND)
+          END IF
+          bStat = GA_Destroy (lg_T)
+        else
+          ID = IDTMAT(ISYM,ICASE)
+          CALL DDAFILE(LUSBT,2,WRK1,NAS*NIN,ID)
+          CALL DDAFILE(LUGRAD,1,WRK1,NAS*NIN,IDSAVGRD)
+        end if
+#else
         ID = IDTMAT(ISYM,ICASE)
         CALL DDAFILE(LUSBT,2,WRK1,NAS*NIN,ID)
         CALL DDAFILE(LUGRAD,1,WRK1,NAS*NIN,IDSAVGRD)
+#endif
         !! Eigenvalue
         ID  = IDBMAT(ISYM,ICASE)
         CALL DDAFILE(LUSBT,2,WRK1,NAS,ID)
@@ -190,17 +280,74 @@ Subroutine SavGradParams(Mode,IDSAVGRD)
         end if
       Else If (IORW == 2) Then
         !! Active overlap
+#ifdef _MOLCAS_MPP_
+        if (is_real_par() .and. (icase==1 .or. icase==4)) then
+          CALL PSBMAT_GETMEM('S',lg_S,NAS)
+          CALL GA_Distribution (lg_S,myRank,ISTA,IEND,JSTA,JEND)
+          IF (ISTA.GT.0 .AND. JSTA.GT.0) THEN
+            CALL GA_Access (lg_S,ISTA,IEND,JSTA,JEND,mV1,LDM)
+            NBLOCK=LDM*(JEND-JSTA+1)
+            CALL DDAFILE(LUGRAD,2,DBL_MB(mV1),NBLOCK,IDSAVGRD)
+            CALL GA_Release (lg_S,ISTA,IEND,JSTA,JEND)
+          END IF
+          CALL PSBMAT_WRITE('S',iCase,iSym,lg_S,NAS)
+          CALL PSBMAT_FREEMEM('S',lg_S,NAS)
+        else
+          CALL DDAFILE(LUGRAD,2,WRK1,NAS*(NAS+1)/2,IDSAVGRD)
+          ID = IDSMAT(ISYM,ICASE)
+          CALL DDAFILE(LUSBT,1,WRK1,NAS*(NAS+1)/2,ID)
+        end if
+#else
         CALL DDAFILE(LUGRAD,2,WRK1,NAS*(NAS+1)/2,IDSAVGRD)
         ID = IDSMAT(ISYM,ICASE)
         CALL DDAFILE(LUSBT,1,WRK1,NAS*(NAS+1)/2,ID)
+#endif
         !! ST matrix
+#ifdef _MOLCAS_MPP_
+        if (is_real_par() .and. (icase==1 .or. icase==4)) then
+          CALL GA_CREATE_STRIPED ('H',NAS,NIN,'STMAT',lg_ST)
+          CALL GA_Distribution (lg_ST,myRank,ISTA,IEND,JSTA,JEND)
+          IF (ISTA.GT.0 .AND. JSTA.GT.0) THEN
+            CALL GA_Access (lg_ST,ISTA,IEND,JSTA,JEND,mV1,LDM)
+            NBLOCK=LDM*(JEND-JSTA+1)
+            CALL DDAFILE(LUGRAD,2,DBL_MB(mV1),NBLOCK,IDSAVGRD)
+            CALL GA_Release (lg_ST,ISTA,IEND,JSTA,JEND)
+          END IF
+          CALL PSBMAT_WRITE ('M',iCase,iSym,lg_ST,NAS*NIN)
+          bStat = GA_Destroy (lg_ST)
+        else
+          CALL DDAFILE(LUGRAD,2,WRK1,NAS*NIN,IDSAVGRD)
+          ID = IDSTMAT(ISYM,ICASE)
+          CALL DDAFILE(LUSBT,1,WRK1,NAS*NIN,ID)
+        end if
+#else
         CALL DDAFILE(LUGRAD,2,WRK1,NAS*NIN,IDSAVGRD)
         ID = IDSTMAT(ISYM,ICASE)
         CALL DDAFILE(LUSBT,1,WRK1,NAS*NIN,ID)
+#endif
         !! Transformation matrix (eigenvector)
+#ifdef _MOLCAS_MPP_
+        if (is_real_par() .and. (icase==1 .or. icase==4)) then
+          CALL GA_CREATE_STRIPED ('H',NAS,NIN,'TMAT',lg_T)
+          CALL GA_Distribution (lg_T,myRank,ISTA,IEND,JSTA,JEND)
+          IF (ISTA.GT.0 .AND. JSTA.GT.0) THEN
+            CALL GA_Access (lg_T,ISTA,IEND,JSTA,JEND,mV1,LDM)
+            NBLOCK=LDM*(JEND-JSTA+1)
+            CALL DDAFILE(LUGRAD,2,DBL_MB(mV1),NBLOCK,IDSAVGRD)
+            CALL GA_Release (lg_T,ISTA,IEND,JSTA,JEND)
+          END IF
+          CALL PSBMAT_WRITE ('T',iCase,iSym,lg_T,NAS*NIN)
+          bStat = GA_Destroy (lg_T)
+        else
+          CALL DDAFILE(LUGRAD,2,WRK1,NAS*NIN,IDSAVGRD)
+          ID = IDTMAT(ISYM,ICASE)
+          CALL DDAFILE(LUSBT,1,WRK1,NAS*NIN,ID)
+        end if
+#else
         CALL DDAFILE(LUGRAD,2,WRK1,NAS*NIN,IDSAVGRD)
         ID = IDTMAT(ISYM,ICASE)
         CALL DDAFILE(LUSBT,1,WRK1,NAS*NIN,ID)
+#endif
         !! Eigenvalue
         CALL DDAFILE(LUGRAD,2,WRK1,NAS,IDSAVGRD)
         ID  = IDBMAT(ISYM,ICASE)
@@ -257,21 +404,89 @@ Contains
         If ((ICASE_ == 12) .OR. (ICASE_ == 13)) Then
           Call RHS_ALLO(NAS,NIS,lg_V1)
           If (IORW == 1) Then
+#ifdef _MOLCAS_MPP_
+            if (is_real_par()) then
+              CALL GA_Distribution (lg_V1,myRank,ISTA,IEND,JSTA,JEND)
+              IF (IEND-ISTA+1.EQ.NAS .AND. ISTA.GT.0) THEN
+                CALL GA_Access (lg_V1,ISTA,IEND,JSTA,JEND,mV1,LDW)
+                NVEC=(IEND-ISTA+1)*(JEND-JSTA+1)
+                IDISK=IOFFRHS(ISYM_,ICASE_)
+                CALL DDAFILE(LURHS(IVECX),2,DBL_MB(mV1),NVEC,IDISK)
+                CALL DDAFILE(LUGRAD,IORW,DBL_MB(mV1),NVEC,IDSAVGRD)
+                CALL GA_Release (lg_V1,ISTA,IEND,JSTA,JEND)
+              END IF
+            else
+              Call RHS_READ_SR(lg_V1,ICASE_,ISYM_,IVECX)
+              CALL DDAFILE(LUGRAD,IORW,WORK(lg_V1),NAS*NIS,IDSAVGRD)
+            end if
+#else
             Call RHS_READ_SR(lg_V1,ICASE_,ISYM_,IVECX)
             CALL DDAFILE(LUGRAD,IORW,WORK(lg_V1),NAS*NIS,IDSAVGRD)
+#endif
           Else If (IORW == 2) Then
+#ifdef _MOLCAS_MPP_
+            if (is_real_par()) then
+              CALL GA_Distribution (lg_V1,myRank,ISTA,IEND,JSTA,JEND)
+              IF (IEND-ISTA+1.EQ.NAS .AND. ISTA.GT.0) THEN
+                CALL GA_Access (lg_V1,ISTA,IEND,JSTA,JEND,mV1,LDW)
+                NVEC=(IEND-ISTA+1)*(JEND-JSTA+1)
+                CALL DDAFILE(LUGRAD,IORW,DBL_MB(mV1),NVEC,IDSAVGRD)
+                IDISK=IOFFRHS(ISYM_,ICASE_)
+                CALL DDAFILE(LURHS(IVECX),1,DBL_MB(mV1),NVEC,IDISK)
+                CALL GA_Release (lg_V1,ISTA,IEND,JSTA,JEND)
+              END IF
+            else
+              CALL DDAFILE(LUGRAD,IORW,WORK(lg_V1),NAS*NIS,IDSAVGRD)
+              CALL RHS_SAVE_SR(lg_V1,ICASE_,ISYM_,IVECX)
+            end if
+#else
             CALL DDAFILE(LUGRAD,IORW,WORK(lg_V1),NAS*NIS,IDSAVGRD)
             CALL RHS_SAVE_SR(lg_V1,ICASE_,ISYM_,IVECX)
+#endif
           End If
           CALL RHS_FREE(NAS,NIS,lg_V1)
         Else
           Call RHS_ALLO(NIN,NIS,lg_V1)
           If (IORW == 1) Then
+#ifdef _MOLCAS_MPP_
+            if (is_real_par()) then
+              CALL GA_Distribution (lg_V1,myRank,ISTA,IEND,JSTA,JEND)
+              IF (IEND-ISTA+1.EQ.NIN .AND. ISTA.GT.0) THEN
+                CALL GA_Access (lg_V1,ISTA,IEND,JSTA,JEND,mV1,LDW)
+                NVEC=(IEND-ISTA+1)*(JEND-JSTA+1)
+                IDISK=IOFFRHS(ISYM_,ICASE_)
+                CALL DDAFILE(LURHS(IVECX),2,DBL_MB(mV1),NVEC,IDISK)
+                CALL DDAFILE(LUGRAD,IORW,DBL_MB(mV1),NVEC,IDSAVGRD)
+                CALL GA_Release (lg_V1,ISTA,IEND,JSTA,JEND)
+              END IF
+            else
+              Call RHS_READ_SR(lg_V1,ICASE_,ISYM_,IVECX)
+              CALL DDAFILE(LUGRAD,IORW,WORK(lg_V1),NIN*NIS,IDSAVGRD)
+            end if
+#else
             Call RHS_READ_SR(lg_V1,ICASE_,ISYM_,IVECX)
             CALL DDAFILE(LUGRAD,IORW,WORK(lg_V1),NIN*NIS,IDSAVGRD)
+#endif
           Else If (IORW == 2) Then
+#ifdef _MOLCAS_MPP_
+            if (is_real_par()) then
+              CALL GA_Distribution (lg_V1,myRank,ISTA,IEND,JSTA,JEND)
+              IF (IEND-ISTA+1.EQ.NIN .AND. ISTA.GT.0) THEN
+                CALL GA_Access (lg_V1,ISTA,IEND,JSTA,JEND,mV1,LDW)
+                NVEC=(IEND-ISTA+1)*(JEND-JSTA+1)
+                CALL DDAFILE(LUGRAD,IORW,DBL_MB(mV1),NVEC,IDSAVGRD)
+                IDISK=IOFFRHS(ISYM_,ICASE_)
+                CALL DDAFILE(LURHS(IVECX),1,DBL_MB(mV1),NVEC,IDISK)
+                CALL GA_Release (lg_V1,ISTA,IEND,JSTA,JEND)
+              END IF
+            else
+              CALL DDAFILE(LUGRAD,IORW,WORK(lg_V1),NIN*NIS,IDSAVGRD)
+              CALL RHS_SAVE_SR(lg_V1,ICASE_,ISYM_,IVECX)
+            end if
+#else
             CALL DDAFILE(LUGRAD,IORW,WORK(lg_V1),NIN*NIS,IDSAVGRD)
             CALL RHS_SAVE_SR(lg_V1,ICASE_,ISYM_,IVECX)
+#endif
           End If
           CALL RHS_FREE(NIN,NIS,lg_V1)
         End If

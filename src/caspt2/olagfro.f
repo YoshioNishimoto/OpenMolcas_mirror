@@ -394,6 +394,9 @@ C
 
       USE CHOVEC_IO
       use Cholesky, only: InfVec, nDimRS
+#ifdef _MOLCAS_MPP_
+      USE Para_Info, ONLY: Is_Real_Par, King
+#endif
 
       IMPLICIT REAL*8 (A-H,O-Z)
 
@@ -404,6 +407,10 @@ C
 #include "chocaspt2.fh"
 #include "WrkSpc.fh"
 #include "caspt2_grad.fh"
+#ifdef _MOLCAS_MPP_
+#include "global.fh"
+!#include "mafdecls.fh"
+#endif
 
       Dimension DPT2AO(*),DPT2CAO(*),FPT2AO(*),FPT2CAO(*),WRK(*)
       Integer ISTLT(8),ISTSQ(8),iSkip(8),ipWRK(8)
@@ -411,6 +418,22 @@ C
       integer nnbstr(8,3)
 
       ! INFVEC(I,J,K)=IWORK(ip_INFVEC-1+MAXVEC*N2*(K-1)+MAXVEC*(J-1)+I)
+
+      !! It shoudl be zero, but just in case
+      CALL DCopy_(nBasSq,[0.0D+00],0,FPT2AO,1)
+      CALL DCopy_(nBasSq,[0.0D+00],0,FPT2CAO,1)
+
+#ifdef _MOLCAS_MPP_
+      If (Is_Real_Par()) Then
+        !! To broadcast DPT2AO and DPT2CAO
+        If (.not.King()) Then
+          Call DCopy_(nBasSq,[0.0D+00],0,DPT2AO,1)
+          Call DCopy_(nBasSq,[0.0D+00],0,DPT2CAO,1)
+        End If
+        CALL GADSUM (DPT2AO,nBasSq)
+        CALL GADSUM (DPT2CAO,nBasSq)
+      End If
+#endif
 
       iSym = iSym0
       call getritrfinfo(nnbstr,maxvec,n2)
@@ -555,6 +578,13 @@ C
           FPT2CAO(j+nBasI*(i-1)) = Tmp
         End Do
       End Do
+C
+#ifdef _MOLCAS_MPP_
+      If (Is_Real_Par()) Then
+        CALL GADSUM (FPT2AO,nBasSq)
+        CALL GADSUM (FPT2CAO,nBasSq)
+      End If
+#endif
 C
       Return
 C

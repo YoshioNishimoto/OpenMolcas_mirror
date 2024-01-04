@@ -15,6 +15,15 @@ module caspt2_gradient
 
   use definitions, only: iwp,wp
 
+  ! some gradient stuff
+  integer(kind=iwp) :: iVecL           = 7_iwp ! Solution of the Lambda equation
+  ! iVecG (G is probably gradient stuff) is used in
+  ! caspt2_res.f to temporarily store residual vectors in solving the lambda equation
+  ! sigder.f and clagx.f to temporarily store derivatives of overlap
+  integer(kind=iwp) :: iVecG           = 8_iwp
+  integer(kind=iwp) :: idSDMat(8,13)   = 0_iwp  ! offset of overlap derivative; can be defined with 11
+  logical(kind=iwp) :: if_ssdm         = .false. ! State-dependent DM is used in Fock or not
+
   ! unit numbers
   integer(kind=iwp) :: LuPT2           = 0_iwp
   integer(kind=iwp) :: LuGAMMA         = 0_iwp
@@ -49,7 +58,12 @@ module caspt2_gradient
   ! natural <-> quasi-canonical transformation of frozen orbitals
   real(kind=wp),allocatable :: TraFro(:)
 
-  ! number of CI vectors per batch in mkfg3.f and derfg3.f
+  ! for mkfg3.f and derfg3.f compatibility
+  ! number of CI vectors per batch
   integer(kind=iwp) :: nbuf1_grad      = 0_iwp
+  ! number of tasks executed on the node (for parallel)
+  integer(kind=iwp) :: nTasks_grad
+  ! index of the executed tasks (for parallel)
+  integer(kind=iwp),allocatable :: iTasks_grad(:)
 
 end module caspt2_gradient

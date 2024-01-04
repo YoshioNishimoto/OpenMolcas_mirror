@@ -14,7 +14,7 @@
 C
       use caspt2_gradient, only: LuPT2,LuGAMMA,LuCMOPT2,LuAPT2,LuPT2GRD,
      *                           do_nac,do_lindep,LUGRAD,LUSTD,iStpGrd,
-     *                           idBoriMat,TraFro
+     *                           idBoriMat,TraFro,idSDMat,iTasks_grad
       use stdalloc, only: mma_allocate
 C
       IMPLICIT REAL*8 (A-H,O-Z)
@@ -201,6 +201,8 @@ C
       Call GETMEM('WRK','FREE','REAL',ipWRK,MaxLen)
 C
       if (nFroT /= 0) call mma_allocate(TraFro,nFroT**2,Label='TraFro')
+      call mma_allocate(iTasks_grad,nAshT**2,Label='Tasks_grad')
+      iTasks_grad(:) = 0
 C
       Return
 
@@ -213,14 +215,21 @@ C
       use caspt2_output, only: iPrGlb, verbose
       use caspt2_gradient, only: LuPT2,LuAPT2,
      *                           do_nac,do_csf,iRoot1,iRoot2,LUGRAD,
-     *                           LUSTD,TraFro
+     *                           LUSTD,TraFro,iTasks_grad
       use stdalloc, only: mma_deallocate
+#ifdef _MOLCAS_MPP_
+      USE Para_Info, ONLY: Is_Real_Par, King
+#endif
       IMPLICIT REAL*8 (A-H,O-Z)
 C
 #include "rasdim.fh"
 #include "caspt2.fh"
 #include "WrkSpc.fh"
 #include "caspt2_grad.fh"
+#ifdef _MOLCAS_MPP_
+#include "global.fh"
+!#include "mafdecls.fh"
+#endif
 C
       Dimension UEFF(nState,nState),U0(nState,nState),H0(nState,nState)
       Character(Len=16) mstate1
@@ -379,6 +388,8 @@ C
       LuPT2 = isFreeUnit(LuPT2)
       Call Molcas_Open(LuPT2,'PT2_Lag')
 
+      !! Temporarily, some matrices in the master node is distributed
+      !! to all cores. This can be avoided, I think.
       DEB = .false.
       !! configuration Lagrangian (read in RHS_PT2)
       If (DEB) call RecPrt('CLagFull','',work(ipCLagFull),nConf,nState)
@@ -387,6 +398,13 @@ C
       End Do
 
       !! orbital Lagrangian (read in RHS_PT2)
+#ifdef _MOLCAS_MPP_
+      if (is_real_par()) then
+        If (.not.King())
+     *    Call DCopy_(nOLag,[0.0D+00],0,Work(ipOLagFull),1)
+        CALL GADSUM (Work(ipOLagFull),nOLag)
+      end if
+#endif
       If (DEB) call RecPrt('OLagFull','',work(ipOLagFull),nBasT,nBasT)
       Do i = 1, nOLag
         Write (LuPT2,*) Work(ipOLagFull+i-1)
@@ -399,18 +417,36 @@ C
       End Do
 
       !! renormalization contributions (read in OUT_PT2)
+#ifdef _MOLCAS_MPP_
+      if (is_real_par()) then
+        If (.not.King()) Call DCopy_(nBasT,[0.0D+00],0,Work(ipWLag),1)
+        CALL GADSUM (Work(ipWLag),nBasT)
+      end if
+#endif
       If (DEB) call TriPrt('WLag', '', work(ipWLag), nBast)
       Do i = 1, nbast*(nbast+1)/2 !! nWLag
         Write (LuPT2,*) Work(ipWlag+i-1)
       End Do
 
       !! D^PT2 in MO (read in OUT_PT2)
+#ifdef _MOLCAS_MPP_
+      if (is_real_par()) then
+        If (.not.King()) Call DCopy_(nBasSq,[0.0D+00],0,Work(ipDPT2),1)
+        CALL GADSUM (Work(ipDPT2),nBasSq)
+      end if
+#endif
       If (DEB) call RecPrt('DPT2', '', work(ipDPT2), nBast, nBast)
       Do i = 1, nBasSq
         Write (LuPT2,*) Work(ipDPT2+i-1)
       End Do
 
       !! D^PT2(C) in MO (read in OUT_PT2)
+#ifdef _MOLCAS_MPP_
+      if (is_real_par()) then
+        If (.not.King()) Call DCopy_(nBasSq,[0.0D+00],0,Work(ipDPT2C),1)
+        CALL GADSUM (Work(ipDPT2C),nBasSq)
+      end if
+#endif
       If (DEB) call RecPrt('DPT2C', '', work(ipDPT2C), nBast, nBast)
       Do i = 1, nBasSq
         Write (LuPT2,*) Work(ipDPT2C+i-1)
@@ -502,6 +538,7 @@ C
       Call DaClos(LUGRAD)
 C
       if (nFroT /= 0) call mma_deallocate(TraFro)
+      call mma_deallocate(iTasks_grad)
 C
       Return
 C
