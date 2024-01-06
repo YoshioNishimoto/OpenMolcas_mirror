@@ -20,7 +20,7 @@
       USE PT2WFN
       use caspt2_output, only:iPrGlb,usual,verbose
       use OneDat, only: sNoNuc, sNoOri
-      use caspt2_gradient, only: do_nac,iRoot1,iRoot2
+      use caspt2_gradient, only: do_nac,iRoot1,iRoot2,do_grad
 #ifdef _MOLCAS_MPP_
       USE Para_Info, ONLY: Is_Real_Par
 #endif
@@ -43,7 +43,7 @@
 
 
 #ifdef _MOLCAS_MPP_
-      IF (Is_Real_Par()) THEN
+      IF (Is_Real_Par() .AND. IPRGLB.GE.USUAL .AND. .not.do_grad) THEN
         WRITE(6,'(1X,A)') ' ====================================='
         WRITE(6,'(1X,A)') ' CASPT2 properties were requested, but'
         WRITE(6,'(1X,A)') ' these are not efficiently implemented'

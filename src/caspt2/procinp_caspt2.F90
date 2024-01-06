@@ -590,9 +590,20 @@ subroutine procinp_caspt2
       call quit_onUserError
     end if
 
+#ifdef _MOLCAS_MPP_
+    ! No parallel without RI/CD
+    if ((.not. ifChol) .and. nProcs > 1) then
+      call warningMessage(2,'Analytic gradients without density fitting or Cholesky decomposition not available'//  &
+                            ' in parallel executions.')
+      call quit_onUserError
+    end if
+#endif
+
 #if defined (_MOLCAS_MPP_) && ! defined (_GA_)
     ! for the time being no gradients without GA
     ! Parallel CASPT2 gradient is implemented with some GA-specific subroutines
+    ! partially because I can use OpenMolcas only for which GA is required.
+    ! As long as OpenMolcas concerns, this should be no problem (at all)
     if (nProcs > 1) then
       call warningMessage(2,'Analytic gradients not available'//  &
                             ' without GA installed. Install GA and link.')
