@@ -403,14 +403,14 @@ contains
 
   implicit none
 
-  integer(kind=iwp) :: i3, i4, kAO, kAOk, kSO, kSO0, kSOk, kBas, kBsInc, kCmp, &
-                       lAO, lAOl, lSO, lSO0, lSOl, lBas, lBsInc, lCmp, &
-                       klS, iS, jS, kS, lS, nSkal_Valence, nSkal_Auxiliary, nSkal, ij_Shell, iSkal, jSkal, &
-                       nij_Shell, indS, iiQ, ijQ, jjQ, ij, ijS, ish, jsh, iSO, lMaxDens
-  real(kind=wp) :: TMax_all, ThrAO, A_int_ij, Dm_ij, XDm_ii, XDm_jj, XDm_ij, XDm_max
-  logical(kind=iwp) :: Indexation, DoFock, DoGrad
+  integer(kind=iwp) :: i3, i4, ij, ijQ, ijS, ij_Shell, iiQ, iS, iSO, iSkal, indS, ish, jS, jSkal, jjQ, jsh, &
+                       kAO, kAOk, kBas, kBsInc, kCmp, kS, klS, kSO, kSO0, kSOk, &
+                       lAO, lAOl, lBas, lBsInc, lCmp, lMaxDens, lS, lSO, lSO0, lSOl, &
+                       nij_Shell, nSkal, nSkal_Auxiliary, nSkal_Valence
+  real(kind=wp) :: A_int_ij, Dm_ij, ThrAO, TMax_all, XDm_ii, XDm_ij, XDm_jj, XDm_max
+  logical(kind=iwp) :: DoFock, DoGrad, Indexation
   integer(kind=iwp), allocatable :: iShij(:,:)
-  real(kind=wp), allocatable :: TMax_Valence(:,:), Tmp(:,:), MaxDens(:)
+  real(kind=wp), allocatable :: MaxDens(:), TMax_Valence(:,:), Tmp(:,:)
   integer(kind=iwp), external :: Cho_irange
   logical(kind=iwp), external :: Rsv_Tsk2
 
