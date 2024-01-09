@@ -40,10 +40,10 @@ integer(kind=iwp) :: i, iAdrQ, id, iOffQ1, iOpt, iost, ip_B, ip_B2, iSym, j, jSy
                      NumCV, NumVecJ, NumVecK, nVec, NumCVt, &
                      NPROCS, myRank, nSkal2_, nCalAO, iAO, jAO, iAOstart, iAOlast, nCalAO_tot
 real(kind=wp) :: aaa, Fac, TotCPU0, TotCPU1, TotWall0, TotWall1
-logical(kind=iwp) :: is_error,Found
+logical(kind=iwp) :: is_error, Found
 character(len=4096) :: RealName
 character(len=6) :: Name_Q
-integer(kind=iwp), allocatable :: nList_Shell(:),nList_AO(:),LBList(:),AOList(:,:),IWRK(:,:)
+integer(kind=iwp), allocatable :: AOList(:,:), IWRK(:,:), LBList(:), nList_AO(:), nList_Shell(:)
 real(kind=wp), allocatable :: A(:), A_ht(:), A_t(:), B_t(:), QVec(:)
 character(len=*), parameter :: SECNAM = 'Mult_with_Q_CASPT2'
 integer(kind=iwp), external :: IsFreeUnit
@@ -51,10 +51,10 @@ integer(kind=iwp), external :: IsFreeUnit
 #ifdef _MOLCAS_MPP_
 #include "global.fh"
 #include "mafdecls.fh"
-      LOGICAL bStat
-      logical(kind=iwp) :: use_GA
-      integer(kind=iwp) :: lg_V1, lg_V2, iLo1, iHi1, jLo1, jHi1, mV1, iLo2, iHi2, jLo2, jHi2, mV2, nDim
-      integer(kind=iwp), allocatable :: nList(:)
+  logical bStat
+  logical(kind=iwp) :: use_GA
+  integer(kind=iwp) :: lg_V1, lg_V2, iLo1, iHi1, jLo1, jHi1, mV1, iLo2, iHi2, jLo2, jHi2, mV2, nDim
+  integer(kind=iwp), allocatable :: nList(:)
 #endif
 
 !                                                                      *
@@ -229,7 +229,7 @@ do iSym=1,nSym
   if (is_real_par()) then
     !! If GA is used, we do not use much replicated memory
     call mma_deallocate(B_t)
-    call mma_allocate(B_t,Max(nBas2,NumAux),Label='B_t')
+    call mma_allocate(B_t,max(nBas2,NumAux),Label='B_t')
 
     !! How to inquire the available GA memory?
     !! original vector is vertial stripe
@@ -260,7 +260,7 @@ do iSym=1,nSym
   end if
 #endif
 
-  LuGAMMA  = IsFreeUnit(65)
+  LuGAMMA = IsFreeUnit(65)
   call PrgmTranslate('GAMMA',RealName,lRealName)
   call MOLCAS_Open_Ext2(LuGamma,RealName(1:lRealName),'DIRECT','UNFORMATTED',iost,.true.,nBas2*8,'OLD',is_error)
 
@@ -278,7 +278,7 @@ do iSym=1,nSym
     !! lg_V1 is used as a working space, but probably inappropriate
     call GA_Distribution(lg_V1,myRank,iLo1,iHi1,jLo1,jHi1)
     call GA_Access(lg_V1,iLo1,iHi1,jLo1,jHi1,mV1,nDim)
-    do lVec=1, NumCV
+    do lVec = 1, NumCV
       read(Unit=LuGAMMA,Rec=lVec) B_t(1:nBas2)
       ! symmetrize (mu nu | P)
       do i = 1, nCalAO
@@ -390,7 +390,7 @@ return
 
 contains
 
-  Subroutine construct_AOList()
+  subroutine construct_AOList()
 
   use Constants, only: Zero
   use Definitions, only: wp, iwp
@@ -403,21 +403,21 @@ contains
 
   implicit none
 
-  integer(kind=iwp) :: i3,i4,kAO,kAOk,kSO,kSO0,kSOk,kBas,kBsInc,kCmp, &
-                       lAO,lAOl,lSO,lSO0,lSOl,lBas,lBsInc,lCmp, &
-                       klS,iS,jS,kS,lS,nSkal_Valence,nSkal_Auxiliary,nSkal,ij_Shell,iSkal,jSkal, &
+  integer(kind=iwp) :: i3, i4, kAO, kAOk, kSO, kSO0, kSOk, kBas, kBsInc, kCmp, &
+                       lAO, lAOl, lSO, lSO0, lSOl, lBas, lBsInc, lCmp, &
+                       klS, iS, jS, kS, lS, nSkal_Valence, nSkal_Auxiliary, nSkal, ij_Shell, iSkal, jSkal, &
                        nij_Shell, indS, iiQ, ijQ, jjQ, ij, ijS, ish, jsh, iSO, lMaxDens
-  real(kind=wp) :: TMax_all,ThrAO,A_int_ij,Dm_ij,XDm_ii,XDm_jj,XDm_ij,XDm_max
-  logical(kind=iwp) :: Indexation,DoFock,DoGrad
+  real(kind=wp) :: TMax_all, ThrAO, A_int_ij, Dm_ij, XDm_ii, XDm_jj, XDm_ij, XDm_max
+  logical(kind=iwp) :: Indexation, DoFock, DoGrad
   integer(kind=iwp), allocatable :: iShij(:,:)
-  real(kind=wp), allocatable :: TMax_Valence(:,:),Tmp(:,:),MaxDens(:)
+  real(kind=wp), allocatable :: TMax_Valence(:,:), Tmp(:,:), MaxDens(:)
   integer(kind=iwp), external :: Cho_irange
   logical(kind=iwp), external :: Rsv_Tsk2
 
   call Set_Basis_Mode('Auxiliary')
   call Nr_Shells(nSkal_Auxiliary)
   call Set_Basis_Mode('Valence')
-  Call Nr_Shells(nSkal_Valence)
+  call Nr_Shells(nSkal_Valence)
   call Set_Basis_Mode('WithAuxiliary')
 ! Call Nr_Shells(nSkal)
 ! nSkal = nSkal_Valence
@@ -583,9 +583,9 @@ contains
   nCalAO_tot = kS
   iAOstart = nList_AO(myRank+1)
   if (myRank+1 == NPROCS) then
-    iAOlast  = kS
+    iAOlast = kS
   else
-    iAOlast  = nList_AO(myRank+2)-1
+    iAOlast = nList_AO(myRank+2)-1
   end if
 
   call Free_Tsk2(id)
