@@ -88,7 +88,6 @@ C
 #ifdef _MOLCAS_MPP_
 #include "global.fh"
 #include "mafdecls.fh"
-      LOGICAL bStat
 #endif
 C
       Integer Active, Inactive, Virtual
