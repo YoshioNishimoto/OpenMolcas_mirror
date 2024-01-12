@@ -52,6 +52,8 @@
         WRITE(6,'(1X,A)') ' to a significant speed up.'
         WRITE(6,'(1X,A)') ' ====================================='
       END IF
+#else
+      call unused_logical(do_grad)
 #endif
 
 * PAM2008 When this subroutine is called, the calculation has been done

@@ -149,7 +149,8 @@ C-----------------------------------------------------------------------
 C
       SUBROUTINE CLagD(G1,G2,G3,DG1,DG2,DG3,DF1,DF2,DF3,DEASUM,DEPSA,
      *                 VECROT)
-      use caspt2_global, only:imag_shift, sigma_p_epsilon, ipea_shift
+      use caspt2_global, only:imag_shift, sigma_p_epsilon, ipea_shift,
+     *                        real_shift
 #ifdef _MOLCAS_MPP_
       USE Para_Info, ONLY: Is_Real_Par, King
 #endif
@@ -1513,13 +1514,11 @@ C
       CALL I1DAFILE(LUSOLV,2,idxG3,6*NG3,iLUID)
 
       if (iCase.eq.1) then
-        Call CLagDXA_FG3_MPP(iSym,nAS,lg_BDER,lg_SDER,
-     *                  DG1,DG2,DG3,DF1,DF2,DF3,DEPSA,
-     *                  ILO,IHI,JLO,JHI,LDV,G2,DBL_MB(mS),idxG3)
+        Call CLagDXA_FG3_MPP(iSym,lg_BDER,lg_SDER,
+     *                  DG1,DG2,DG3,DF1,DF2,DF3,DEPSA,G2,idxG3)
       else if (iCase.eq.4) then
-        Call CLagDXC_FG3_MPP(iSym,nAS,lg_BDER,lg_SDER,
-     *                  DG1,DG2,DG3,DF1,DF2,DF3,DEPSA,
-     *                  ILO,IHI,JLO,JHI,LDV,G2,DBL_MB(mS),idxG3)
+        Call CLagDXC_FG3_MPP(iSym,lg_BDER,lg_SDER,
+     *                  DG1,DG2,DG3,DF1,DF2,DF3,DEPSA,G2,idxG3)
 C
         !! DF3 is done after icase=4
         !! construct G3 matrix in lg_S
@@ -1539,146 +1538,6 @@ C
       bStat = GA_destroy(lg_SDER)
 C
       End Subroutine CLagDX_MPP
-C
-C-----------------------------------------------------------------------
-C
-      Subroutine CLag_MPP_NT(ALPHA_,VEC1_,NROW1_,VEC2_,NROW2_,
-     *                       lg_WRK_,NROW3_,NCALC_)
-C
-      implicit real*8 (a-h,o-z)
-C
-#include "global.fh"
-#include "mafdecls.fh"
-C
-      integer,intent(in) :: lg_WRK_, NROW1_, NROW2_, NROW3_, NCALC_
-      real*8,intent(in) :: alpha_, vec1_(*), vec2_(*)
-C
-C     mannual GA_DGEMM('N','T',...) operations (incomplete)
-C
-C     NROW1_ and NROW2_: # of rows of the myRank-th array
-C     NROW3_: # of rows of the global array
-C     NROW3 and NCOL3: # of rows/columns of the buffer (iRank-th) array
-C
-      NPROCS=GA_NNODES()
-C
-      Do iRank = 0, NPROCS-1
-        CALL GA_Distribution (lg_WRK_,iRank,iLoV3,iHiV3,jLoV3,jHiV3)
-        NROW3=iHiV3-iLoV3+1
-        NCOL3=jHiV3-jLoV3+1
-        if (nrow3 == 0 .or. ncol3 == 0) cycle
-        CALL GETMEM('VEC3','ALLO','REAL',LVEC3,NROW3*NCOL3)
-        CALL GETMEM('IND3','ALLO','INTE',LIND3,NROW3*NCOL3)
-C
-        CALL DGEMM_('N','T',NROW3,NCOL3,NCALC_,
-     &              ALPHA_ ,VEC1_(iLoV3),NROW1_,
-     &                      VEC2_(jLoV3),NROW2_,
-     &              0.0D+00,WORK(LVEC3),NROW3)
-C
-        nseq = 0
-        do j = 1, ncol3
-          do i = 1, nrow3
-            nseq = nseq + 1
-            iWork(LIND3+nseq-1) = iLoV3+i-1 + NROW3_*(jLoV3+j-2)
-          end do
-        end do
-        CALL RHS_SCATTER(NROW3_,lg_WRK_,WORK(LVEC3),iWORK(LIND3),
-     *                   NROW3*NCOL3)
-
-        CALL GETMEM('VEC3','FREE','REAL',LVEC3,NROW3*NCOL3)
-        CALL GETMEM('IND3','FREE','INTE',LIND3,NROW3*NCOL3)
-      End Do
-C
-      return
-C
-      end subroutine CLag_MPP_NT
-C
-C-----------------------------------------------------------------------
-C
-      Subroutine CLag_MPP_INASTRF(lg_BDERin, lg_BDERas, lg_T_, lg_WRK_)
-C
-      use Definitions, only: u6
-C
-      implicit real*8 (a-h,o-z)
-C
-#include "global.fh"
-#include "mafdecls.fh"
-C
-      integer,intent(in) :: lg_BDERin, lg_BDERas, lg_T_, lg_WRK_
-C
-      MYRANK=GA_NODEID()
-      NPROCS=GA_NNODES()
-C
-      !! first index
-      CALL GA_Distribution(lg_T_,myRank,iLoV1,iHiV1,jLoV1,jHiV1)
-      Call GA_Access(lg_T_,iLoV1,iHiV1,jLoV1,jHiV1,mV1,LDV1)
-      NROW1=iHiV1-iLoV1+1
-      NCOL1=jHiV1-jLoV1+1
-      NCALC=jHiV1-jLoV1+1
-C
-      CALL GA_Distribution(lg_WRK_,myRank,iLoV3,iHiV3,jLoV3,jHiV3)
-      Call GA_Access(lg_WRK_,iLoV3,iHiV3,jLoV3,jHiV3,mV3,LDV3)
-      NROW3=iHiV3-iLoV3+1
-      NCOL3=jHiV3-jLoV3+1
-C
-      Do iRank = 0, NPROCS-1
-        CALL GA_Distribution(lg_BDERin,iRank,iLoV2,iHiV2,jLoV2,jHiV2)
-        NROW2=iHiV2-iLoV2+1
-        NCOL2=jHiV2-jLoV2+1
-        if (ncol1 /= nrow2) then
-          write (u6,*) "NCOL1 /= NROW2 in CLag_MPP_INASTRF"
-          call abend
-        end if
-C
-        CALL GETMEM('VEC2','ALLO','REAL',LVEC2,NROW2*NCOL2)
-        Call GA_Get(lg_BDERin,iLoV2,iHiV2,jLoV2,jHiV2,WORK(LVEC2),NROW2)
-        CALL DGEMM_('N','N',NROW1,NCOL2,NCALC,
-     &              1.0D+00,DBL_MB(mV1),NROW1,
-     &                      WORK(LVEC2),NROW2,
-     &              0.0D+00,DBL_MB(mV3+NROW3*(jLoV2-1)),NROW3)
-        CALL GETMEM('VEC2','FREE','REAL',LVEC2,NROW2*NCOL2)
-      End Do
-C
-      CALL GA_Release(lg_T_,iLoV1,iHiV1,jLoV1,jHiV1)
-      CALL GA_Release_Update(lg_WRK_,iLoV3,iHiV3,jLoV3,jHiV3)
-      CALL GA_SYNC()
-C
-      !! second index
-      CALL GA_Distribution(lg_WRK_,myRank,iLoV1,iHiV1,jLoV1,jHiV1)
-      Call GA_Access(lg_WRK_,iLoV1,iHiV1,jLoV1,jHiV1,mV1,LDV1)
-      NROW1=iHiV1-iLoV1+1
-      NCOL1=jHiV1-jLoV1+1
-      NCALC=NCOL1
-C
-      CALL GA_Distribution(lg_BDERas,myRank,iLoV3,iHiV3,jLoV3,jHiV3)
-      Call GA_Access(lg_BDERas,iLoV3,iHiV3,jLoV3,jHiV3,mV3,LDV3)
-      NROW3=iHiV3-iLoV3+1
-      NCOL3=jHiV3-jLoV3+1
-C
-      Do iRank = 0, NPROCS-1
-        CALL GA_Distribution(lg_T_,iRank,iLoV2,iHiV2,jLoV2,jHiV2)
-        NROW2=iHiV2-iLoV2+1
-        NCOL2=jHiV2-jLoV2+1
-        if (ncol1 /= ncol2) then
-          write (u6,*) "NCOL1 /= NCOL2 in CLag_MPP_INASTRF"
-          call abend
-        end if
-C
-        CALL GETMEM('VEC2','ALLO','REAL',LVEC2,NROW2*NCOL2)
-        Call GA_Get(lg_T_,iLoV2,iHiV2,jLoV2,jHiV2,WORK(LVEC2),NROW2)
-        CALL DGEMM_('N','T',NROW1,NROW2,NCALC,
-     &              1.0D+00,DBL_MB(mV1),NROW1,
-     &                      WORK(LVEC2),NROW2,
-     &              0.0D+00,DBL_MB(mV3+NROW3*(iLoV2-1)),NROW3)
-        CALL GETMEM('VEC2','FREE','REAL',LVEC2,NROW2*NCOL2)
-      End Do
-C
-      CALL GA_Release(lg_WRK_,iLoV1,iHiV1,jLoV1,jHiV1)
-      CALL GA_Release_Update(lg_BDERas,iLoV3,iHiV3,jLoV3,jHiV3)
-      CALL GA_SYNC()
-C
-      return
-C
-      end subroutine CLag_MPP_INASTRF
 #endif
 C
       End Subroutine CLagD
@@ -2855,9 +2714,9 @@ C
 C-----------------------------------------------------------------------
 C
 #ifdef _MOLCAS_MPP_
-      SUBROUTINE CLagDXA_FG3_MPP(ISYM,nAS,lg_BDER,lg_SDER,DG1,DG2,DG3,
-     *                           DF1,DF2,DF3,DEPSA,ILO,IHI,JLO,JHI,LDC,
-     *                           G2,SC,idxG3)
+      SUBROUTINE CLagDXA_FG3_MPP(ISYM,lg_BDER,lg_SDER,DG1,DG2,DG3,
+     *                           DF1,DF2,DF3,DEPSA,G2,idxG3)
+C
       USE MPI
       USE SUPERINDEX
       IMPLICIT REAL*8 (A-H,O-Z)
@@ -2875,7 +2734,6 @@ C
      *          DF1(NASHT,NASHT),DF2(NASHT,NASHT,NASHT,NASHT),DF3(*),
      *          DEPSA(NASHT,NASHT)
       DIMENSION G2(NASHT,NASHT,NASHT,NASHT)
-      DIMENSION SC(LDC,*)
       INTEGER*1 idxG3(6,NG3)
 
       INTEGER, ALLOCATABLE :: INDI(:), INDJ(:), NELBsav(:), NELSsav(:)
@@ -3159,8 +3017,6 @@ C  - G(xvzyut) -> SA(yvx,zut)
       DEALLOCATE (INDJ)
 
       RETURN
-c Avoid unused argument warnings
-      IF (.FALSE.) CALL UNUSED_INTEGER(iHi)
 C
       End Subroutine CLagDXA_FG3_MPP
 #endif
@@ -3206,6 +3062,7 @@ C
       NROW = 0
       iLoS = 0
       jLoS = 0
+      NPROCS = 1
 #ifdef _MOLCAS_MPP_
       if (is_real_par()) then
         NPROCS=GA_NNODES()
@@ -3635,9 +3492,8 @@ C
 C-----------------------------------------------------------------------
 C
 #ifdef _MOLCAS_MPP_
-      SUBROUTINE CLagDXC_FG3_MPP(ISYM,nAS,lg_BDER,lg_SDER,DG1,DG2,DG3,
-     *                           DF1,DF2,DF3,DEPSA,ILO,IHI,JLO,JHI,LDC,
-     *                           G2,SC,idxG3)
+      SUBROUTINE CLagDXC_FG3_MPP(ISYM,lg_BDER,lg_SDER,DG1,DG2,DG3,
+     *                           DF1,DF2,DF3,DEPSA,G2,idxG3)
       USE MPI
       USE SUPERINDEX
       IMPLICIT REAL*8 (A-H,O-Z)
@@ -3655,7 +3511,6 @@ C
      *          DF1(NASHT,NASHT),DF2(NASHT,NASHT,NASHT,NASHT),DF3(*),
      *          DEPSA(NASHT,NASHT)
       DIMENSION G2(NASHT,NASHT,NASHT,NASHT)
-      DIMENSION SC(LDC,*)
       INTEGER*1 idxG3(6,NG3)
 
       INTEGER, ALLOCATABLE :: INDI(:), INDJ(:), NELBsav(:), NELSsav(:)
@@ -3948,8 +3803,6 @@ C         End If
       DEALLOCATE (INDJ)
 
       RETURN
-c Avoid unused argument warnings
-      IF (.FALSE.) CALL UNUSED_INTEGER(iHi)
 C
       End Subroutine CLagDXC_FG3_MPP
 #endif
@@ -3995,6 +3848,7 @@ C
       NROW = 0
       iLoS = 0
       jLoS = 0
+      NPROCS = 1
 #ifdef _MOLCAS_MPP_
       if (is_real_par()) then
         NPROCS=GA_NNODES()
