@@ -403,7 +403,7 @@ contains
 
   implicit none
 
-  integer(kind=iwp) :: i3, i4, ij, ijQ, ijS, ij_Shell, iiQ, iS, iSO, iSkal, indS, ish, jS, jSkal, jjQ, jsh, &
+  integer(kind=iwp) :: i3, i4, ij, ijQ, ijS, ij_Shell, iiQ, iS, iSO, iSkal, iSym_, indS, ish, jS, jSkal, jjQ, jsh, &
                        kAO, kAOk, kBas, kBsInc, kCmp, kS, klS, kSO, kSO0, kSOk, &
                        lAO, lAOl, lBas, lBsInc, lCmp, lMaxDens, lS, lSO, lSO0, lSOl, &
                        nij_Shell, nSkal, nSkal_Auxiliary, nSkal_Valence
@@ -449,9 +449,9 @@ contains
   lMaxDens = nTri_Elem(nSkal_Valence)
   call mma_allocate(MaxDens,lMaxDens,Label='MaxDens')
   MaxDens(:) = Zero
-  do iSym=0,nSym-1
-    kS = 1+nSkal_Valence*iSym ! note diff wrt declaration of iBDsh
-!   do j=1,nBas(iSym)
+  do iSym_=0,nSym-1
+    kS = 1+nSkal_Valence*iSym_ ! note diff wrt declaration of iBDsh
+!   do j=1,nBas(iSym_)
     do j=1,nBas(1)
       jsh = Cho_Irange(j,iBDsh(kS),nSkal_Valence,.true.)
       do i=1,j
@@ -460,7 +460,7 @@ contains
         do iSO=1,nJDens
           if (.not. DMLT(iSO)%Active) cycle
           ij = iTri(j,i)
-          Dm_ij = abs(DMLT(iSO)%SB(iSym+1)%A1(ij))
+          Dm_ij = abs(DMLT(iSO)%SB(iSym_+1)%A1(ij))
           MaxDens(ijS) = max(MaxDens(ijS),Dm_ij)
         end do
       end do
