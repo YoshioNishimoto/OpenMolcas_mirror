@@ -149,8 +149,7 @@ C-----------------------------------------------------------------------
 C
       SUBROUTINE CLagD(G1,G2,G3,DG1,DG2,DG3,DF1,DF2,DF3,DEASUM,DEPSA,
      *                 VECROT)
-      use caspt2_global, only:imag_shift, sigma_p_epsilon, ipea_shift,
-     *                        real_shift
+      use caspt2_global, only:imag_shift, sigma_p_epsilon, ipea_shift
 #ifdef _MOLCAS_MPP_
       USE Para_Info, ONLY: Is_Real_Par, King
 #endif
@@ -1142,6 +1141,7 @@ C
 #if defined(_MOLCAS_MPP_) && defined(_GA_)
       Subroutine CLagDX_MPP
 C
+      use caspt2_global, only:real_shift
       use caspt2_gradient, only:do_lindep,LUSTD,idSDMat
       use Definitions, only: u6
 C
