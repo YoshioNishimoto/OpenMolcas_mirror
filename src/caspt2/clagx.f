@@ -5509,7 +5509,9 @@ C
 #include "global.fh"
 #include "mafdecls.fh"
 C
+#if ! defined (_SCALAPACK_)
       DIMENSION WGRONK(2)
+#endif
       logical :: bStat
 C
 C     Parallel LinDepLag
