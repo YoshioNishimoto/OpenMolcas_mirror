@@ -2213,30 +2213,30 @@ C           CALL GA_Put (lg_V1,1,nBasT**2,IV1,IV2,
 C    *                   Work(ipB_SSDM),nBasT**2)
           else
 #endif
-          KV1=JSTART
-          JBATCH_TOT=NBTCHES(iSym)
-          DO JBATCH=1,NBATCH
-            JBATCH_TOT=JBATCH_TOT+1
+            KV1=JSTART
+            JBATCH_TOT=NBTCHES(iSym)
+            DO JBATCH=1,NBATCH
+              JBATCH_TOT=JBATCH_TOT+1
 
-            KNUM=NVLOC_CHOBATCH(JBATCH_TOT)
-            KV2=KV1+KNUM-1
+              KNUM=NVLOC_CHOBATCH(JBATCH_TOT)
+              KV2=KV1+KNUM-1
 
-            JREDC=JRED
-            CALL CHO_VECRD(WORK(IP_CHSPC),NCHSPC,KV1,KV2,iSym,
-     &                              NUMV,JREDC,MUSED)
-           Call R2FIP(Work(ip_CHSPC),Work(ipWRK(iSym)),ipWRK(iSym),NUMV,
-     *                size(nDimRS),infVec,nDimRS,
-     *                nBasT,nSym,iSym,iSkip,irc,JREDC)
+              JREDC=JRED
+              CALL CHO_VECRD(WORK(IP_CHSPC),NCHSPC,KV1,KV2,iSym,
+     &                                NUMV,JREDC,MUSED)
+              Call R2FIP(Work(ip_CHSPC),Work(ipWRK(iSym)),ipWRK(iSym),
+     *                   NUMV,size(nDimRS),infVec,nDimRS,
+     *                   nBasT,nSym,iSym,iSkip,irc,JREDC)
 C
-            !! Exchange part of A_PT2
-            NUMVJ = NUMV
-            CALL DGEMM_('T','N',NUMVI,NUMVJ,nBasT**2,
-     *                 -1.0D+00,Work(ipB_SSDM),nBasT**2,
-     *                          Work(ip_CHSPC),nBasT**2,
-     *                  1.0D+00,Work(ipA_PT2+JV1-1+MaxVec_PT2*(KV1-1)),
-     *                          MaxVec_PT2)
-            KV1=KV1+KNUM
-          END DO
+              !! Exchange part of A_PT2
+              NUMVJ = NUMV
+              CALL DGEMM_('T','N',NUMVI,NUMVJ,nBasT**2,
+     *                   -1.0D+00,Work(ipB_SSDM),nBasT**2,
+     *                            Work(ip_CHSPC),nBasT**2,
+     *                   1.0D+00,Work(ipA_PT2+JV1-1+MaxVec_PT2*(KV1-1)),
+     *                            MaxVec_PT2)
+              KV1=KV1+KNUM
+            END DO
 #ifdef _MOLCAS_MPP_
           end if
 #endif

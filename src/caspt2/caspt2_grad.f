@@ -295,7 +295,6 @@ C
       End If
 
       IF (IFXMS.or.IFRMS.or.(IFMSCOUP.and.do_nac.and.do_csf)) Then
-
         If (.not.IFXMS .and. .not.IFRMS) Then
           !! For MS-CASPT2, only the second term in eq.(68)
           Call DCopy_(nState**2,[0.0D+00],0,U0,1)

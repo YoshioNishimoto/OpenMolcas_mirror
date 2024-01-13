@@ -8,10 +8,6 @@
 *           and with the RMUL keyword
 *           Analytic gradients and NAC, RICD and real shift
 *-------------------------------------------------------------------------------
-* analytic gradients do not work in parallel for the time being
-> IF ( $MOLCAS_NPROCS != 1)
->   EXIT 36
-> ENDIF
 
 *-------------------------------------------------------------------------------
 * RMS-CASPT2 MECI optimization of ethylene with RICD and real shift
