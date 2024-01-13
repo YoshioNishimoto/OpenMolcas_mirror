@@ -169,7 +169,7 @@ C-SVC: get the local vertical stripes of the lg_W vector
         CALL GA_Distribution (lg_W1,myRank,iLo1,iHi1,jLo1,jHi1)
         CALL GA_Distribution (lg_W2,myRank,iLo2,iHi2,jLo2,jHi2)
         !! Well, assume the same dimension
-        IF (iLo1.NE.0.AND.jLo1.NE.0) THEN
+        IF (iLo1.GT.0.AND.jLo1.GT.0.AND.iLo2.GT.0.AND.jLo2.GT.0) THEN
           NROW=iHi1-iLo1+1
           NCOL=jHi1-jLo1+1
           CALL GA_Access (lg_W1,iLo1,iHi1,jLo1,jHi1,mW1,LDW1)

@@ -1325,27 +1325,29 @@ C
 C     mode = 0 operations for S derivative
 C
       !! Scale with the eigenvalue
-      CALL GETMEM('LEIG  ','ALLO','REAL',LEIG  ,NIN)
-      idB  = idBMAT(iSym,iCase)
-      CALL DDAFILE(LUSBT,2,WORK(LEIG),NIN,IDB)
       CALL GA_Distribution (lg_WRK,myRank,iLoV1,iHiV1,jLoV1,jHiV1)
-      CALL GA_Access(lg_WRK,iLoV1,iHiV1,jLoV1,jHiV1,mV1,LDV1)
-C
       NROW=iHiV1-iLoV1+1
       NCOL=jHiV1-jLoV1+1
-      do j = 1, NCOL
-        jICB = j + jLoV1 - 1
-        EigJ = Work(LEIG+jICB-1)
-        do i = 1, NROW
-          iICB = i + iLoV1 - 1
-          EigI = Work(LEIG+iICB-1)
-          DBL_MB(mV1+i-1+NROW*(j-1))
-     *      = -DBL_MB(mV1+i-1+NROW*(j-1))*(EigI+EigJ)*0.5D+00
-        end do
-      end do
+      if (NROW.gt.0 .and. NCOL.gt.0) then
+        CALL GETMEM('LEIG  ','ALLO','REAL',LEIG  ,NIN)
+        idB  = idBMAT(iSym,iCase)
+        CALL DDAFILE(LUSBT,2,WORK(LEIG),NIN,IDB)
+        CALL GA_Access(lg_WRK,iLoV1,iHiV1,jLoV1,jHiV1,mV1,LDV1)
 C
-      CALL GA_Release_Update(lg_WRK,iLoV1,iHiV1,jLoV1,jHiV1)
-      CALL GETMEM('LEIG  ','FREE','REAL',LEIG  ,NIN)
+        do j = 1, NCOL
+          jICB = j + jLoV1 - 1
+          EigJ = Work(LEIG+jICB-1)
+          do i = 1, NROW
+            iICB = i + iLoV1 - 1
+            EigI = Work(LEIG+iICB-1)
+            DBL_MB(mV1+i-1+NROW*(j-1))
+     *        = -DBL_MB(mV1+i-1+NROW*(j-1))*(EigI+EigJ)*0.5D+00
+          end do
+        end do
+C
+        CALL GA_Release_Update(lg_WRK,iLoV1,iHiV1,jLoV1,jHiV1)
+        CALL GETMEM('LEIG  ','FREE','REAL',LEIG  ,NIN)
+      end if
 C     if (king()) then
 C       CALL GETMEM('VEC1','ALLO','REAL',LVEC1,NIN*NIN)
 C       CALL GA_GET(lg_wrk,1,NIN,1,NIN,WORK(LVEC1),NIN)

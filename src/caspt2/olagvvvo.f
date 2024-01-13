@@ -259,8 +259,12 @@ C     write(6,*) "olag after vvvo"
 C     call sqprt(work(ipolag),nbast)
 C
 #ifdef _MOLCAS_MPP_
-      If (DoCholesky .and. Is_Real_Par()) Then
-        CALL GADSUM (Work(ipOLag),nOLag)
+      If (Is_Real_Par()) Then
+        If (DoCholesky) CALL GADSUM (Work(ipOLag),nOLag)
+        If (nFroT.eq.0) Then
+          CALL GADSUM (FPT2AO,nBasT**2)
+          CALL GADSUM (FPT2CAO,nBasT**2)
+        End If
       End If
 #endif
 C

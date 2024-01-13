@@ -171,5 +171,9 @@ C
  100    CONTINUE
  101  CONTINUE
 
+#ifdef _MOLCAS_MPP_
+      IF (Is_Real_Par().and.do_grad) call gadsum(dpt2,ndpt2)
+#endif
+
       RETURN
       END
