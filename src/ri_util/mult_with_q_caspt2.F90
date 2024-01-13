@@ -580,10 +580,10 @@ contains
     nList_AO(i) = kS
     kS = kS + lS
   end do
-  nCalAO_tot = kS
+  nCalAO_tot = kS-1
   iAOstart = nList_AO(myRank+1)
   if (myRank+1 == NPROCS) then
-    iAOlast = kS
+    iAOlast = kS-1
   else
     iAOlast = nList_AO(myRank+2)-1
   end if
