@@ -25,7 +25,8 @@
       use Para_Info, Only: mpp_procid, mpp_nprocs
 #endif
 #endif
-      use csfbas, only: CONF, KCFTP
+      use csfbas, only: CONF
+      use glbbas, only: CFTP
       use Fock_util_global, only: DoCholesky
       use Cholesky, only: ChFracMem
       use write_orbital_files, only: OrbFiles, write_orb_per_iter
@@ -71,8 +72,6 @@
 #include "ciinfo.fh"
 #include "spinfo.fh"
 #include "lucia_ini.fh"
-#include "rasscf_lucia.fh"
-*^ needed for passing kint1_pointer
 *
 *
       Character*180  Line
@@ -3625,7 +3624,7 @@ C Test read failed. JOBOLD cannot be used.
       IF (ICICH.EQ.1) THEN
         CALL GETMEM('UG2SG','ALLO','INTE',LUG2SG,NCONF)
         CALL UG2SG(NROOTS,NCONF,NAC,NACTEL,STSYM,IPR,
-     *             CONF,IWORK(KCFTP),IWORK(LUG2SG),
+     *             CONF,CFTP,IWORK(LUG2SG),
      *             ICI,JCJ,CCI,MXROOT)
         CALL GETMEM('UG2SG','FREE','INTE',LUG2SG,NCONF)
       END IF

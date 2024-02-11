@@ -12,6 +12,7 @@
 subroutine SIGMADET_CVB(C,HC,IREFSM,NCI)
 
 use Definitions, only: wp, iwp
+use GLBBAS, only: CI_Vec, Sigma_Vec
 
 implicit none
 integer(kind=iwp), intent(in) :: IREFSM, NCI
@@ -19,17 +20,15 @@ real(kind=wp), intent(in) :: C(NCI)
 real(kind=wp), intent(out) :: HC(NCI)
 integer(kind=iwp) :: IDUMMY
 real(kind=wp) :: DUMMY(1)
-#include "WrkSpc.fh"
+Integer, External:: ip_of_Work
 #include "rasscf_lucia.fh"
 
 ! Export arguments to be used in sigma_master_cvb
 
-C_POINTER = KCI_POINTER
-call DCOPY_(NCI,C,1,WORK(C_POINTER),1)
+C_POINTER = ip_of_Work(CI_VEC(1))
+CI_VEC(1:NCI)=C(1:NCI)
 ! Call the sigma routine
 call LUCIA_UTIL('SIGMA_CVB',IREFSM,IDUMMY,DUMMY)
-call DCOPY_(NCI,WORK(KSIGMA_POINTER),1,HC,1)
-
-return
+HC(1:NCI)=SIGMA_VEC(1:NCI)
 
 end subroutine SIGMADET_CVB

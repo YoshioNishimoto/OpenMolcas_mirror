@@ -8,13 +8,10 @@
 ! For more details see the full text of the license in the file        *
 ! LICENSE or in <http://www.gnu.org/licenses/>.                        *
 !***********************************************************************
-      INTEGER                              C_POINTER,                   &
-     &                       kh0_pointer, Lucia_base, Lucia_length,     &
-     &        kvec3_length,                                             &
-     &                       iSigma_on_disk,ini_h0, Memory_Needed_Lucia
-      COMMON/RASSCF_LUCIA/                             C_POINTER,       &
-     &                       kh0_pointer, Lucia_base, Lucia_length,     &
-     &        kvec3_length,                                             &
-     &                       iSigma_on_disk,ini_h0, Memory_Needed_Lucia
-      INTEGER LW6,LW7,LW8,LW9,LW_RF1,LW_RF2
-      COMMON/DENSI_POINTERS/LW6,LW7,LW8,LW9,LW_RF1,LW_RF2
+Module DISTSYM
+Private
+Integer,Public:: INGRP_VAL
+Integer,Allocatable,Public:: ISMDFGP(:)
+Integer,Allocatable,Public:: NACTSYM(:)
+Integer,Allocatable,Public:: ISMSCR(:)
+End Module DISTSYM

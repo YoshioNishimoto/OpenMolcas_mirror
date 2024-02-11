@@ -11,6 +11,7 @@
 * Copyright (C) 1997,1998, Jeppe Olsen                                 *
 ************************************************************************
       SUBROUTINE GETH1(H,ISM,ITP,JSM,JTP)
+      use GLBBAS
 *
 * One-electron integrals over orbitals belonging to
 * given OS class
@@ -26,9 +27,7 @@
 *
       IMPLICIT REAL*8(A-H,O-Z)
 #include "mxpdim.fh"
-#include "WrkSpc.fh"
 *.Global pointers
-#include "glbbas.fh"
 #include "lucinp.fh"
 #include "orbinp.fh"
 

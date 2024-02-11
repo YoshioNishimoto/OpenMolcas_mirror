@@ -21,11 +21,14 @@
 *> that all common blocks used have a common parent routine.
 *>
 *> @param[in] Module Identifier
-*> @param[in] Int1   Argument to LUCIA
-*> @param[in] Int2   Argument to LUCIA
+*> @param[in] iArg1   Argument to LUCIA
+*> @param[in] iArg2   Argument to LUCIA
 *> @param[in] Array1 Argument to LUCIA
 ************************************************************************
-      Subroutine Lucia_Util(Module,Int1,Int2,Array1)
+      Subroutine Lucia_Util(Module,iArg1,iArg2,Array1)
+      use stdalloc, only: mma_allocate, mma_deallocate
+      use GLBBAS
+      use strbas
 #include "implicit.fh"
       Parameter(MxpLnc = 72)
       Character*(*) Module
@@ -54,7 +57,6 @@
 
 
 #include "gasstr.fh"
-#include "glbbas.fh"
 #include "intform.fh"
 #include "irat.fh"
 
@@ -64,10 +66,9 @@
 #include "orbinp.fh"
 #include "spinfo_lucia.fh"
 #include "stinf.fh"
-#include "strbas.fh"
 #include "strinp.fh"
-#include "WrkSpc.fh"
 #include "rasscf_lucia.fh"
+      Integer, Allocatable:: lVec(:)
 *
 #ifdef _DEBUGPRINT_
       INTEGER, SAVE :: COUNTER = 0
@@ -86,21 +87,21 @@
       If (Module_(1:4) .eq. 'DIAG') Then
          Call Diag_Master
       Else If (Module_(1:9) .eq. 'SIGMA_CVB') Then
-*        Int1 is the symmetry to be used.
-         Call Sigma_Master_CVB(Int1)
+*        iArg1 is the symmetry to be used.
+         Call Sigma_Master_CVB(iArg1)
       Else If (Module_(1:5) .eq. 'SIGMA') Then
 !        write(6,*) 'blubbbbbbhc'
          Call Sigma_Master
       Else If (Module_(1:5) .eq. 'TRACI') Then
 !        write(6,*) 'blubbbbbbtraci'
-*        Int1 is the initial disk address (for read/write of JOBIPH)
-*        Int2 is the file unit for JOBIPH
+*        iArg1 is the initial disk address (for read/write of JOBIPH)
+*        iArg2 is the file unit for JOBIPH
 *        Array1 is the transformation matrix (not sorted as LUCIA needs it).
-         Call GetMem('lrec','allo','inte',ivlrec,MXNTTS)
-         Call Traci_Master(Int1,Int2,Array1,iWork(ivlrec))
-         Call GetMem('lrec','free','inte',ivlrec,MXNTTS)
+         Call mma_allocate(lVec,MXNTTS,Label='lVec')
+         Call Traci_Master(iArg1,iArg2,Array1,lVec)
+         Call mma_deallocate(lVec)
       Else If (Module_(1:5) .eq. 'DENSI') Then
-         Call Densi_Master(Int1)
+         Call Densi_Master(iArg1)
       Else If (Module_(1:3) .eq. 'INI') Then
          Call Lucia_Ini
          Call DetCtl_Gas
