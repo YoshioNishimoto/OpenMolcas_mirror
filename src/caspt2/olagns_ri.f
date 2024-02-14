@@ -71,7 +71,8 @@ C
 C
       Use CHOVEC_IO
       use caspt2_output, only: iPrGlb, verbose
-      use caspt2_gradient, only: do_csf
+      use caspt2_gradient, only: do_csf, LuGamma, do_rdm2
+      use stdalloc, only: mma_allocate, mma_deallocate
 C
       Implicit Real*8 (A-H,O-Z)
 C
@@ -93,6 +94,11 @@ C
 #endif
 C
       Dimension DPT2C(*),DPT2Canti(*),A_PT2(nChoVec,nChoVec)
+      real*8,allocatable :: RDMWRK(:,:,:,:),WRK(:,:,:,:),
+     *  WRK2(:),WRK3(:),WRK4(:,:),WRK5(:,:)
+
+      Character*4096 RealName
+      Logical is_error
 C
       Call ICopy(NSYM,NISH,1,nSh(1,Inactive),1)
       Call ICopy(NSYM,NASH,1,nSh(1,Active  ),1)
@@ -106,6 +112,11 @@ C
       ! iVec = iVecX
       iSym = iSym0
       SCLNEL = 1.0D+00/DBLE(MAX(1,NACTEL))
+      if (do_rdm2) then
+        call mma_allocate(RDMWRK,nOrb(1),nOrb(1),nOrb(1),nOrb(1),
+     *                    label='RDMWRK')
+        Call DCopy_(nOrb(1)**4,[0.0D+00],0,RDMWRK,1)
+      end if
 *                                                                      *
 ************************************************************************
 *                                                                      *
@@ -442,6 +453,151 @@ C
       Call DScal_(nBasSq,SCLNEL,DPT2C,1)
       If (do_csf) Call DScal_(nBasSq,SCLNEL,DPT2Canti,1)
 C
+      if (do_rdm2) then
+        LCMOPT3 = LCMOPT2 + nFro(1)*nBasT
+        ! 4th
+        call mma_allocate(WRK,nOrb(1),nOrb(1),nOrb(1),nBasT,label='WRK')
+        call dgemm_('N','T',nOrb(1)**3,nBasT,nOrb(1),
+     *              1.0D+00,RDMWRK,nOrb(1)**3,WORK(LCMOPT3),nBasT,
+     *              0.0D+00,WRK,nOrb(1)**3)
+        call mma_deallocate(RDMWRK)
+        ! 3rd
+        call mma_allocate(RDMWRK,nOrb(1),nOrb(1),
+     *                    nBasT,nBasT,label='RDMWRK')
+        do i = 1, nBasT
+          call dgemm_('N','T',nOrb(1)**2,nBasT,nOrb(1),
+     *              1.0D+00,WRK(1,1,1,i),nOrb(1)**2,WORK(LCMOPT3),nBasT,
+     *              0.0D+00,RDMWRK(1,1,1,i),nOrb(1)**2)
+        end do
+        call mma_deallocate(WRK)
+
+        Call PrgmTranslate('GAMMA',RealName,lRealName)
+        LuGAMMA = isFreeUnit(LuGAMMA)
+        Call MOLCAS_Open_Ext2(LuGamma,RealName(1:lRealName),
+     &                       'DIRECT','UNFORMATTED',
+     &                        iost,.TRUE.,
+     &                        nBasT**2*8,'OLD',is_error)
+
+        call mma_allocate(WRK2,nBasSq,label='WRK2')
+        call mma_allocate(WRK3,nBasSq,label='WRK3')
+        nseq = 0
+        do j = 1, nBasT
+        do i = 1, nBasT
+          nseq = nseq + 1
+          Read (LuGamma,Rec=nseq) (WRK2(k),k=1,nBasSQ)
+          ! 1st
+          call dgemm_('N','N',nBasT,nOrb(1),nOrb(1),
+     *              1.0D+00,WORK(LCMOPT3),nBasT,RDMWRK(1,1,i,j),nOrb(1),
+     *              0.0D+00,WRK3,nBasT)
+          ! 2nd
+          call dgemm_('N','T',nBasT,nBasT,nOrb(1),
+     *                1.0D+00,WRK3,nBasT,WORK(LCMOPT3),nBasT,
+     *                1.0D+00,WRK2,nBasT)
+          Write (LuGamma,Rec=nseq) (WRK2(k),k=1,nBasSq)
+        end do
+        end do
+
+        call mma_deallocate(RDMWRK)
+        call mma_deallocate(WRK2)
+        call mma_deallocate(WRK3)
+
+        call mma_allocate(RDMWRK,nBasT,nBasT,nBasT,nBasT,label='RDMWRK')
+        call mma_allocate(WRK3,nBasSq,label='WRK3')
+        write (6,*) "2"
+        do i = 1, nBasT**2
+        write (6,*) "i = ", i
+          Read (LuGamma,Rec=i) (WRK3(k),k=1,nBasSQ)
+          call dcopy_(nBasSq,WRK3,1,RDMWRK(1,1,i,1),1)
+        end do
+        call mma_deallocate(WRK3)
+
+        !! add DPT2C contributions
+        call mma_allocate(WRK4,nBasT,nBasT,label='WRK4')
+        call mma_allocate(WRK5,nBasT,nBasT,label='WRK5')
+        call dgemm_('N','N',nBasT,nBasT,nBasT,
+     *              1.0D+00,Work(LCMOPT2),nBasT,DPT2C,nBasT,
+     *              0.0D+00,WRK4,nBasT)
+        call dgemm_('N','T',nBasT,nBasT,nBasT,
+     *              1.0D+00,WRK4,nBasT,Work(LCMOPT2),nBasT,
+     *              0.0D+00,WRK5,nBasT)
+        do i = 1, nbast
+        do j = 1, i-1
+          val = (wrk5(i,j) + wrk5(j,i))*0.5d+00
+          wrk5(i,j) = val
+          wrk5(j,i) = val
+        end do
+        end do
+        call dgemm_('N','T',nBasT,nBasT,nFro(1)+nIsh(1),
+     *              2.0D+00,Work(LCMOPT2),nBasT,Work(LCMOPT2),nBasT,
+     *              0.0D+00,WRK4,nBasT)
+        call dgemm_('N','T',nBasT,nBasT,nIsh(1),
+     *              2.0D+00,Work(LCMOPT3),nBasT,Work(LCMOPT3),nBasT,
+     *              0.0D+00,WRK4,nBasT)
+        do i = 1, nBasT
+          do j = 1, nBasT
+            do k = 1, nBasT
+              do l = 1, nBasT
+        RDMWRK(i,j,k,l) = RDMWRK(i,j,k,l)
+     * + 0.5d+00*WRK4(i,j)*WRK5(k,l)
+     * - 0.25d+00*WRK4(i,k)*WRK5(j,l)
+              end do
+            end do
+          end do
+        end do
+        call mma_deallocate(WRK4)
+        call mma_deallocate(WRK5)
+
+      eee = 0.0d+00
+      norbtot = norbt + nfro(1)
+C     write (6,*) "one electron integral"
+      do i = 1, norbt
+      do j = 1, norbt
+      val1 = dpt2c(i+nfro(1)+norbtot*(j+nfro(1)-1))
+      nseq = max(i,j)*(max(i,j)-1)/2 + min(i,j)
+      val2 = work(lhone+nseq-1)
+C     val2 = work(lfimo+nseq-1)
+C     write (6,'(2i3,3f20.10)') i,j,val1,val2,val1*val2
+C     write (6,'(2i3,1f20.10)') i,j,val2
+      eee = eee + val1*val2
+      end do
+      end do
+      write (6,*) "eee = ", eee*0.5d+00
+
+      do i = 1, nbast
+      do j = 1, nbast
+        do k= 1, nbast
+        do l = 1, nbast
+          val = rdmwrk(i,j,k,l) + rdmwrk(i,j,l,k)
+     *        + rdmwrk(j,i,k,l) + rdmwrk(j,i,l,k)
+     *        + rdmwrk(k,l,i,j) + rdmwrk(l,k,i,j)
+     *        + rdmwrk(k,l,j,i) + rdmwrk(l,k,i,j)
+          val = val/8.0d+00
+          rdmwrk(i,j,k,l) = val
+          rdmwrk(i,j,l,k) = val
+          rdmwrk(j,i,k,l) = val
+          rdmwrk(j,i,l,k) = val
+          rdmwrk(k,l,i,j) = val
+          rdmwrk(l,k,i,j) = val
+          rdmwrk(k,l,j,i) = val
+          rdmwrk(l,k,i,j) = val
+        end do
+        end do
+      end do
+      end do
+
+        do i = 1, nBasT
+          do j = 1, nBasT
+            do k = 1, nBasT
+              do l = 1, nBasT
+        write (6,'(4i3,f20.10)') i,j,k,l,RDMWRK(i,j,k,l)
+              end do
+            end do
+          end do
+        end do
+        Close (LuGAMMA)
+
+        call mma_deallocate(RDMWRK)
+      end if
 C
       Return
 C
@@ -619,7 +775,7 @@ C
 C
       Call DCopy_(NTJVX,[0.0D+00],0,TJVX,1)
 C
-      nOrbT = nFro(iSyT)+nIsh(iSyT)+nAsh(iSyT)+nSsh(iSyT)
+      nOrbTot = nFro(iSyT)+nIsh(iSyT)+nAsh(iSyT)+nSsh(iSyT)
       DO IT=1,NT
         ITABS=IT+NAES(ISYT)
         iTtot = iT + nFro(iSyT) + nIsh(iSyT)
@@ -636,12 +792,12 @@ C
               IW=IW1+NAS*(IW2-1)
 C
               ValAF = Work(ipT+IW-1)*2.0D+00
-              DPT2C(iTtot+nOrbT*(iJtot-1))
-     *          = DPT2C(iTtot+nOrbT*(iJtot-1)) + ValAF
+              DPT2C(iTtot+nOrbTot*(iJtot-1))
+     *          = DPT2C(iTtot+nOrbTot*(iJtot-1)) + ValAF
               If (do_csf) Then
                 ValAFanti = Work(ipTanti+IW-1)*2.0D+00
-                DPT2Canti(iTtot+nOrbT*(iJtot-1))
-     *            = DPT2Canti(iTtot+nOrbT*(iJtot-1)) + ValAFanti
+                DPT2Canti(iTtot+nOrbTot*(iJtot-1))
+     *            = DPT2Canti(iTtot+nOrbTot*(iJtot-1)) + ValAFanti
               End If
             END IF
             DO IX=1,NX
@@ -650,6 +806,15 @@ C
               IW2=IJ
               IW=IW1+NAS*(IW2-1)
               TJVX(IT,IJ,IV,IX) = Work(ipT+IW-1)
+              if (do_rdm2) then
+                itabs2 = itabs + nish(1)
+                ijabs2 = ij+nies(isyj)
+                ivabs2 = ivabs + nish(1)
+                ixabs2 = ixabs + nish(1)
+                RDMWRK(ITABS2,IJABS2,IVABS2,IXABS2)
+     *          = RDMWRK(ITABS2,IJABS2,IVABS2,IXABS2)
+     *          + Work(ipT+IW-1)
+              end if
             END DO
           END DO
         END DO
@@ -749,6 +914,15 @@ C
                 END IF
                 IW=IW1+NASP*(IW2-1)
                 TJVL(IT,IJ,IV,IL) = SCL*Work(ipTP+IW-1)
+              if (do_rdm2) then
+                itabs2 = itabs + nish(1)
+                ijabs2 = ijabs
+                ivabs2 = ivabs + nish(1)
+                ilabs2 = ilabs
+                RDMWRK(ITABS2,IJABS2,IVABS2,ILABS2)
+     *          = RDMWRK(ITABS2,IJABS2,IVABS2,ILABS2)
+     *          + SCL*Work(ipTP+IW-1)
+              end if
               END DO
             END DO
           END DO
@@ -794,6 +968,15 @@ C
                 IW=IW1+NASM*(IW2-1)
                 TJVL(IT,IJ,IV,IL) = TJVL(IT,IJ,IV,IL)
      *            + SCL*Work(ipTM+IW-1)
+              if (do_rdm2) then
+                itabs2 = itabs + nish(1)
+                ijabs2 = ijabs
+                ivabs2 = ivabs + nish(1)
+                ilabs2 = ilabs
+                RDMWRK(ITABS2,IJABS2,IVABS2,ILABS2)
+     *          = RDMWRK(ITABS2,IJABS2,IVABS2,ILABS2)
+     *          + SCL*Work(ipTM+IW-1)
+              end if
               END DO
             END DO
           END DO
@@ -894,6 +1077,18 @@ C
               ValC = Work(ipT+IW-1)
               AUVX(IA,IU,IV,IX) = AUVX(IA,IU,IV,IX) + ValC
               AUVX(IA,IX,IU,IX) = AUVX(IA,IX,IU,IX) - ValCF*0.5D+00
+              if (do_rdm2) then
+                iaabs2 = ia+nses(1) + nish(1)+nash(1)
+                iuabs2 = iuabs + nish(1)
+                ivabs2 = ivabs + nish(1)
+                ixabs2 = ixabs + nish(1)
+                RDMWRK(IAABS2,IUABS2,IVABS2,IXABS2)
+     *          = RDMWRK(IAABS2,IUABS2,IVABS2,IXABS2)
+     *          + ValC
+                RDMWRK(IAABS2,IXABS2,IUABS2,IXABS2)
+     *          = RDMWRK(IAABS2,IXABS2,IUABS2,IXABS2)
+     *          - ValCF*0.5D+00
+              end if
             END DO
           END DO
         END DO
@@ -1011,6 +1206,15 @@ C
                 End If
               End If
               AJVX(IV,IX,IAJ) = Work(ipT+IW-1)
+              if (do_rdm2) then
+                iaabs2 = ia+nses(isya) + nish(1)+nash(1)
+                ijabs2 = ij + nies(isyj)
+                ivabs2 = ivabs + nish(1)
+                ixabs2 = ixabs + nish(1)
+                RDMWRK(IAABS2,IJABS2,IVABS2,IXABS2)
+     *          = RDMWRK(IAABS2,IJABS2,IVABS2,IXABS2)
+     *          + Work(ipT+IW-1)
+              end if
             END DO
           END DO
         END DO
@@ -1097,6 +1301,15 @@ C
               IW2=IOFFD(ISYA,ISYM)+IL+NL*(IA-1)
               IW=IW1+NAS*(IW2-1)
               AUVL(IA,IU,IV,IL) = Work(ipT+IW-1)
+              if (do_rdm2) then
+                iaabs2 = ia+nses(isya) + nish(1)+nash(1)
+                iuabs2 = iuabs + nish(1)
+                ivabs2 = ivabs + nish(1)
+                ilabs2 = il+nies(isyl)
+                RDMWRK(IAABS2,IUABS2,IVABS2,ILABS2)
+     *          = RDMWRK(IAABS2,IUABS2,IVABS2,ILABS2)
+     *          + Work(ipT+IW-1)
+              end if
             END DO
           END DO
         END DO
@@ -1211,6 +1424,15 @@ C
                 IW=IW1+NAS*(IW2-1)
 C
                 AJVL(IV,IL,IAJ) = SCL*Work(ipTP+IW-1)
+              if (do_rdm2) then
+                iaabs2 = ia+nses(isya) + nish(1)+nash(1)
+                ijabs2 = ijabs
+                ivabs2 = iv+naes(isyv) + nish(1)
+                ilabs2 = ilabs
+                RDMWRK(IAABS2,IJABS2,IVABS2,ILABS2)
+     *          = RDMWRK(IAABS2,IJABS2,IVABS2,ILABS2)
+     *          + SCL*Work(ipTP+IW-1)
+              end if
               END DO
             END DO
           END DO
@@ -1282,6 +1504,15 @@ C
                   IW=IW1+NAS*(IW2-1)
 C
                   AJVL(IV,IL,IAJ) = SCL*Work(ipTM+IW-1)
+              if (do_rdm2) then
+                iaabs2 = ia+nses(isya) + nish(1)+nash(1)
+                ijabs2 = ijabs
+                ivabs2 = iv+naes(isyv) + nish(1)
+                ilabs2 = ilabs
+                RDMWRK(IAABS2,IJABS2,IVABS2,ILABS2)
+     *          = RDMWRK(IAABS2,IJABS2,IVABS2,ILABS2)
+     *          + SCL*Work(ipTM+IW-1)
+              end if
                 END IF
               END DO
             END DO
@@ -1386,6 +1617,15 @@ C
                 END IF
                 IW=IW1+NASP*(IW2-1)
                 AUCX(IA,IU,IC,IX) = SCL*Work(ipTP+IW-1)
+              if (do_rdm2) then
+                iaabs2 = iaabs + nish(1)+nash(1)
+                iuabs2 = iuabs + nish(1)
+                icabs2 = icabs + nish(1)+nash(1)
+                ixabs2 = ixabs + nish(1)
+                RDMWRK(IAABS2,IUABS2,ICABS2,IXABS2)
+     *          = RDMWRK(IAABS2,IUABS2,ICABS2,IXABS2)
+     *          + SCL*Work(ipTP+IW-1)
+              end if
               END DO
             END DO
           END DO
@@ -1433,6 +1673,15 @@ C
                 IW=IW1+NASM*(IW2-1)
                 AUCX(IA,IU,IC,IX) = AUCX(IA,IU,IC,IX)
      *            + SCL*Work(ipTM+IW-1)
+              if (do_rdm2) then
+                iaabs2 = iaabs + nish(1)+nash(1)
+                iuabs2 = iuabs + nish(1)
+                icabs2 = icabs + nish(1)+nash(1)
+                ixabs2 = ixabs + nish(1)
+                RDMWRK(IAABS2,IUABS2,ICABS2,IXABS2)
+     *          = RDMWRK(IAABS2,IUABS2,ICABS2,IXABS2)
+     *          + SCL*Work(ipTM+IW-1)
+              end if
               END DO
             END DO
           END DO
@@ -1559,6 +1808,14 @@ C
 C
                 ValGP = SCL*Work(ipTP+IW-1)
                 AUCL(IA,IU,ICL) = ValGP
+              if (do_rdm2) then
+                iaabs2 = iaabs + nish(1)+nash(1)
+                iuabs2 = iu + naes(isyu) + nish(1)
+                icabs2 = icabs + nish(1)+nash(1)
+                ilabs2 = il + nies(isyl)
+                RDMWRK(IAABS2,IUABS2,ICABS2,ILABS2)
+     *          = RDMWRK(IAABS2,IUABS2,ICABS2,ILABS2) + ValGP
+              end if
               END DO
             END DO
           END DO
@@ -1641,6 +1898,14 @@ C
 C
                 ValGM = SCL*Work(ipTM+IW-1)
                 AUCL(IA,IU,ICL) = ValGM
+              if (do_rdm2) then
+                iaabs2 = iaabs + nish(1)+nash(1)
+                iuabs2 = iu + naes(isyu) + nish(1)
+                icabs2 = icabs + nish(1)+nash(1)
+                ilabs2 = il + nies(isyl)
+                RDMWRK(IAABS2,IUABS2,ICABS2,ILABS2)
+     *          = RDMWRK(IAABS2,IUABS2,ICABS2,ILABS2) + ValGM
+              end if
               END DO
             END DO
           END DO
@@ -1779,6 +2044,12 @@ C
 C
               ValHP = SCL*Work(ipTP+IW-1)
               AJCL(ICLSTA+ICL-1,IAJ) = ValHP
+              if (do_rdm2) then
+                iaabs2 = iaabs + nish(1)+nash(1)
+                icabs2 = icabs + nish(1)+nash(1)
+                RDMWRK(IAABS2,IJABS,ICABS2,ILABS)
+     *          = RDMWRK(IAABS2,IJABS,ICABS2,ILABS) + ValHP
+              end if
             END DO
           END DO
         END DO
@@ -1874,6 +2145,12 @@ C
 C
               ValHM = SCL*Work(ipTM+IW-1)
               AJCL(ICLSTA+ICL-1,IAJ) = ValHM
+              if (do_rdm2) then
+                iaabs2 = iaabs + nish(1)+nash(1)
+                icabs2 = icabs + nish(1)+nash(1)
+                RDMWRK(IAABS2,IJABS,ICABS2,ILABS)
+     *          = RDMWRK(IAABS2,IJABS,ICABS2,ILABS) + ValHM
+              end if
             END DO
           END DO
         END DO

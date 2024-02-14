@@ -52,4 +52,6 @@ module caspt2_gradient
   ! number of CI vectors per batch in mkfg3.f and derfg3.f
   integer(kind=iwp) :: nbuf1_grad      = 0_iwp
 
+  logical(kind=iwp) :: do_rdm2         = .false.
+
 end module caspt2_gradient

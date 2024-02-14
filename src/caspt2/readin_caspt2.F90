@@ -199,6 +199,8 @@ module InputData
     ! IAINVAR   specify the CASPT2 energy is invariant wrt inactive
     !           and secondary orbital rotations. Development purpose
     Logical :: IAINVAR  = .True.
+    ! DORDM2    Construct RDM2 in AO
+    Logical :: DORDM2   = .false.
 
   end type ! end of type InputTable
 
@@ -702,6 +704,9 @@ contains
 
       Case('IAIN')
         Input%IAINVAR = .false.
+
+      Case('RDM2')
+        Input%DORDM2 = .true.
 
         ! OBSOLETE KEYWORDS
 

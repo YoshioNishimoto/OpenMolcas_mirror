@@ -18,7 +18,7 @@ subroutine procinp_caspt2
                            ipea_shift, imag_shift, real_shift
   use caspt2_gradient, only: do_grad, do_nac, do_csf, do_lindep, &
                              if_invar, iRoot1, iRoot2, if_invaria, &
-                             ConvInvar
+                             ConvInvar, do_rdm2
   use UnixInfo, only: SuperName
 #ifdef _MOLCAS_MPP_
   use Para_Info, only:Is_Real_Par, nProcs
@@ -678,6 +678,7 @@ subroutine procinp_caspt2
   if (ipea_shift /= 0.0_wp) if_invar = .false.
   if_invaria = input%IAINVAR
   ConvInvar  = input%ThrConvInvar
+  do_rdm2    = input%dordm2
 
   if ((ipea_shift /= 0.0_wp) .and. do_grad .and. (.not.IFDORTHO)) then
     call warningMessage(2,'Analytic gradients with IPEA shift'//  &

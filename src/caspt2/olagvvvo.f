@@ -747,7 +747,7 @@ C
 
       use ChoVec_io
       use Cholesky, only: InfVec, nDimRS
-      use caspt2_gradient, only: LuGAMMA
+      use caspt2_gradient, only: LuGAMMA,do_rdm2
 
       IMPLICIT REAL*8 (A-H,O-Z)
 
@@ -876,7 +876,7 @@ C     write(6,*) "jred1,jred2 = ", jred1,jred2
 * Loop over IBATCH
         JV1=JSTART
         DO IBATCH=1,NBATCH
-C         write(6,*) "ibatch,nbatch = ", ibatch,nbatch
+          write(6,*) "ibatch,nbatch = ", ibatch,nbatch
           IBATCH_TOT=IBATCH_TOT+1
 
           JNUM=NVLOC_CHOBATCH(IBATCH_TOT)
@@ -927,6 +927,23 @@ C
           Call R2FIP(Work(ip_CHSPC),Work(ipWRK(iSym)),ipWRK(iSym),NUMV,
      *               size(nDimRS),infVec,nDimRS,
      *               nBasT,nSym,iSym,iSkip,irc,JREDC)
+C      write (*,*) "numv = ", numv
+C     CALL GETMEM('WRK2 ','ALLO','REAL',ipWRK2,nBasT*nBasT*nBasT*nBasT)
+C     call dgemm_('N','T',nBasT**2,nBasT**2,NUMV,
+C    *          1.0D+00,Work(ip_CHSPC),nBasT**2,Work(ip_CHSPC),nBasT**2,
+C    *          0.0d+00,Work(ipWRK2),nBasT**2)
+C     do i = 1, nBasT
+C       do j = 1, nBasT
+C         do k = 1, nBasT
+C           do l = 1, nBasT
+C     write (*,'(4i3,f20.10)') i,j,k,l,
+C    * work(ipWRK2+i-1+nBasT*(j-1)+nBasT**2*(k-1)+nBasT**3*(l-1))
+C           end do
+C         end do
+C       end do
+C     end do
+C     CALL GETMEM('WRK2 ','FREE','REAL',ipWRK2,nBasT*nBasT*nBasT*nBasT)
+
 C
 C           ----- Fock-like transformations (if needed) -----
 C
@@ -955,22 +972,24 @@ C
 C
           !! 5) Save the 3c-2e pseudo-density in the disk
           !! it may be replaced with ddafile
-          Do iVec = 1, NUMV
-            If (IFMSCOUP.and.jState.ne.1) Then
-              Read (LuGamma,Rec=iVec+JV1-1)
-     *          (Work(ipHTVec+i-1),i=1,nBasI**2)
-              Call DaXpY_(nBasI**2,1.0D+00,
-     *                    Work(ip_CHSPC+nBasI**2*(iVec-1)),1,
-     *                    Work(ipHTVec),1)
-              Write (LuGamma,Rec=iVec+JV1-1)
-     *          Work(ipHTVec:ipHTVec+nBasI**2-1)
-            Else
-             if (jState.eq.iRlxRoot .or. nStLag.gt.1) then
-              Write (LuGamma,Rec=iVec+JV1-1)
-     *        Work(ip_CHSPC+nBasI**2*(iVec-1):ip_CHSPC+nBasI**2*iVec-1)
-             end if
-            End If
-          End Do
+          if (.not.do_rdm2) then
+            Do iVec = 1, NUMV
+              If (IFMSCOUP.and.jState.ne.1) Then
+                Read (LuGamma,Rec=iVec+JV1-1)
+     *            (Work(ipHTVec+i-1),i=1,nBasI**2)
+                Call DaXpY_(nBasI**2,1.0D+00,
+     *                      Work(ip_CHSPC+nBasI**2*(iVec-1)),1,
+     *                      Work(ipHTVec),1)
+                Write (LuGamma,Rec=iVec+JV1-1)
+     *            Work(ipHTVec:ipHTVec+nBasI**2-1)
+              Else
+               if (jState.eq.iRlxRoot .or. nStLag.gt.1) then
+                Write (LuGamma,Rec=iVec+JV1-1)
+     *         Work(ip_CHSPC+nBasI**2*(iVec-1):ip_CHSPC+nBasI**2*iVec-1)
+               end if
+              End If
+            End Do
+          end if
 C
           JV1=JV1+JNUM
         End Do

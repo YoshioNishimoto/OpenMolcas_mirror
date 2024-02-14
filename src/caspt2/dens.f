@@ -1985,7 +1985,7 @@ C
 C
       use ChoVec_io
       use Cholesky, only: InfVec, nDimRS
-      use caspt2_gradient, only: LuGAMMA,LuAPT2
+      use caspt2_gradient, only: LuGAMMA,LuAPT2,do_rdm2
 C
       Implicit Real*8 (A-H,O-Z)
 C
@@ -2157,23 +2157,25 @@ C
           END DO
 C
           !! Read, add, and save the B_PT2 contribution
-          Do iVec = 1, NUMVI
-            Read  (Unit=LuGAMMA,Rec=JV1+iVec-1)
-     *        Work(ipWRK(iSym):ipWRK(iSym)+nBasT**2-1)
-            !! The contributions are doubled,
-            !! because halved in PGet1_RI3?
-            !! Coulomb
-            Call DaXpY_(nBasT**2,Work(ipV2+JV1+iVec-2),
-     *                  DPT2AO,1,Work(ipWRK(iSym)),1)
-            Call DaXpY_(nBasT**2,Work(ipV1+JV1+iVec-2),
-     *                  SSDM  ,1,Work(ipWRK(iSym)),1)
-            !! Exchange
-            Call DaXpY_(nBasT**2,-1.0D+00,
-     *                  Work(ipB_SSDM+nBasT**2*(iVec-1)),1,
-     *                  Work(ipWRK(iSym)),1)
-            Write (Unit=LuGAMMA,Rec=JV1+iVec-1)
-     *        Work(ipWRK(iSym):ipWRK(iSym)+nBasT**2-1)
-          End Do
+          if (.not.do_rdm2) then
+            Do iVec = 1, NUMVI
+              Read  (Unit=LuGAMMA,Rec=JV1+iVec-1)
+     *          Work(ipWRK(iSym):ipWRK(iSym)+nBasT**2-1)
+              !! The contributions are doubled,
+              !! because halved in PGet1_RI3?
+              !! Coulomb
+              Call DaXpY_(nBasT**2,Work(ipV2+JV1+iVec-2),
+     *                    DPT2AO,1,Work(ipWRK(iSym)),1)
+              Call DaXpY_(nBasT**2,Work(ipV1+JV1+iVec-2),
+     *                    SSDM  ,1,Work(ipWRK(iSym)),1)
+              !! Exchange
+              Call DaXpY_(nBasT**2,-1.0D+00,
+     *                    Work(ipB_SSDM+nBasT**2*(iVec-1)),1,
+     *                    Work(ipWRK(iSym)),1)
+              Write (Unit=LuGAMMA,Rec=JV1+iVec-1)
+     *          Work(ipWRK(iSym):ipWRK(iSym)+nBasT**2-1)
+            End Do
+          end if
           JV1=JV1+JNUM
         End Do
       End Do

@@ -14,8 +14,9 @@
 C
       use caspt2_gradient, only: LuPT2,LuGAMMA,LuCMOPT2,LuAPT2,LuPT2GRD,
      *                           do_nac,do_lindep,LUGRAD,LUSTD,iStpGrd,
-     *                           idBoriMat,TraFro
+     *                           idBoriMat,TraFro,do_rdm2
       use stdalloc, only: mma_allocate
+      use RI_glob, only: do_rdm2_glob
 C
       IMPLICIT REAL*8 (A-H,O-Z)
 C
@@ -50,7 +51,24 @@ C
      &                     'DIRECT','UNFORMATTED',
      &                      iost,.TRUE.,
      &                      LENGTH**2*8,'REPLACE',is_error)
+      Call Put_iScalar('do_RDM2',0)
+      if (do_rdm2) then
+        Call Put_iScalar('do_RDM2',1)
+C       write (6,*) "do_rdm2_glob = ", do_rdm2_glob
+        if (.not.ifchol) then
+          write (6,*) 'RDM2 option must be used with RI/CD'
+          call abend()
+        end if
+        Call GETMEM('WRK','ALLO','REAL',ipWRK,LENGTH**2)
+        call dcopy_(length**2,[0.0d+00],0,Work(ipWRK),1)
+        do i = 1, LENGTH**2
+C       write (6,*) "writing i = ", i
+          Write (LuGamma,Rec=i) Work(ipWRK:ipWRK+LENGTH**2-1)
+        end do
+        Call GETMEM('WRK','FREE','REAL',ipWRK,LENGTH**2)
+      end if
       Close (LuGAMMA)
+
 
       If (.not.IfChol) Then
         Call PrgmTranslate('CMOPT2',RealName,lRealName)
@@ -383,37 +401,37 @@ C
       !! configuration Lagrangian (read in RHS_PT2)
       If (DEB) call RecPrt('CLagFull','',work(ipCLagFull),nConf,nState)
       Do i = 1, nCLag
-        Write (LuPT2,*) Work(ipCLagFull+i-1)
+        Write (LuPT2,*) 0.0d+00 ! Work(ipCLagFull+i-1)
       End Do
 
       !! orbital Lagrangian (read in RHS_PT2)
       If (DEB) call RecPrt('OLagFull','',work(ipOLagFull),nBasT,nBasT)
       Do i = 1, nOLag
-        Write (LuPT2,*) Work(ipOLagFull+i-1)
+        Write (LuPT2,*) 0.0d+00 ! Work(ipOLagFull+i-1)
       End Do
 
       !! state Lagrangian (read in RHS_PT2)
       If (DEB) call RecPrt('SLag', '', work(ipSLag), nState, nState)
       Do i = 1, nSLag
-        Write (LuPT2,*) Work(ipSLag+i-1)
+        Write (LuPT2,*) 0.0d+00 ! Work(ipSLag+i-1)
       End Do
 
       !! renormalization contributions (read in OUT_PT2)
       If (DEB) call TriPrt('WLag', '', work(ipWLag), nBast)
       Do i = 1, nbast*(nbast+1)/2 !! nWLag
-        Write (LuPT2,*) Work(ipWlag+i-1)
+        Write (LuPT2,*) 0.0d+00 ! Work(ipWlag+i-1)
       End Do
 
       !! D^PT2 in MO (read in OUT_PT2)
       If (DEB) call RecPrt('DPT2', '', work(ipDPT2), nBast, nBast)
       Do i = 1, nBasSq
-        Write (LuPT2,*) Work(ipDPT2+i-1)
+        Write (LuPT2,*) 0.0d+00 ! Work(ipDPT2+i-1)
       End Do
 
       !! D^PT2(C) in MO (read in OUT_PT2)
       If (DEB) call RecPrt('DPT2C', '', work(ipDPT2C), nBast, nBast)
       Do i = 1, nBasSq
-        Write (LuPT2,*) Work(ipDPT2C+i-1)
+        Write (LuPT2,*) 0.0d+00 ! Work(ipDPT2C+i-1)
       End Do
 
       !! NAC
@@ -426,13 +444,13 @@ C
       !! D^PT2 in AO (not used?)
       If (DEB) call TriPrt('DPT2AO', '', work(ipDPT2AO), nBast)
       Do i = 1, nBasTr
-        Write (LuPT2,*) Work(ipDPT2AO+i-1)
+        Write (LuPT2,*) 0.0d+00 ! Work(ipDPT2AO+i-1)
       End Do
 
       !! D^PT2(C) in AO (not used?)
       If (DEB) call TriPrt('DPT2CAO', '', work(ipDPT2CAO), nBast)
       Do i = 1, nBasTr
-        Write (LuPT2,*) Work(ipDPT2CAO+i-1)
+        Write (LuPT2,*) 0.0d+00 ! Work(ipDPT2CAO+i-1)
       End Do
 
       ! close gradient files

@@ -18,7 +18,7 @@ use Gateway_global, only: force_out_of_core
 use RICD_Info, only: Chol => Cholesky, Do_RI
 use Symmetry_Info, only: Mul, nIrrep
 use Data_Structures, only: Allocate_DT, Deallocate_DT, DSBA_Type
-use RI_glob, only: DMLT, DoCholExch, iMP2prpt, nAdens, nAvec, nChOrb, nJdens, nKdens, nKvec
+use RI_glob, only: DMLT, DoCholExch, iMP2prpt, nAdens, nAvec, nChOrb, nJdens, nKdens, nKvec, do_rdm2_glob
 use Cholesky, only: nSym, NumCho, timings
 use Etwas, only: ExFac, nASh
 use stdalloc, only: mma_allocate, mma_deallocate
@@ -425,6 +425,10 @@ if (DoExchange) then
   if (iMp2prpt == 2) then
     call Mult_with_Q_MP2(nBas_aux,nBas,nIrrep)
   else if (CASPT2) then
+    call get_iscalar("do_RDM2",do_rdm2_glob)
+    write (6,*) "do_rdm2_glob = ", do_rdm2_glob
+    write (6,*) "method = ", method
+    if (do_rdm2_glob .and. Method == 'CASPT2') call mult_with_q_caspt22(Z_p_k,nash(0))
     call Mult_with_Q_CASPT2(nBas_aux,nBas,nIrrep,Chol .and. (.not. Do_RI))
   end if
 end if

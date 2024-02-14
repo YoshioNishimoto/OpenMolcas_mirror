@@ -120,6 +120,8 @@ C
         Call DGEMM_('N','T',nBasI,nBasI,nCorI,
      *              2.0D+00,Work(LCMOPT2),nBasI,Work(LCMOPT2),nBasI,
      *              0.0D+00,DI(iAOsq),nBasI)
+      write (6,*) "inactive density"
+      call sqprt(di(iaosq),nbasi)
 C
         !! inactive+active density matrix
         !! Somehow, the above density matrix obtained by calling
@@ -143,11 +145,31 @@ C
         Call DGemm_('N','T',nBasI,nBasI,nAshI,
      *              1.0D+00,Work(ipWRK2),nBasI,
      *                      Work(LCMOPT2+nBasI*nCorI),nBasI,
-     *              1.0D+00,DIA,nBasI)
+C    *              1.0D+00,DIA,nBasI)
+     *              0.0D+00,DIA,nBasI)
+      write (6,*) "active density"
+      call sqprt(dia,nbasi)
+      call daxpy_(nbasi**2,1.0d+00,di,1,dia,1)
+      write (6,*) "total density"
+      call sqprt(dia,nbasi)
 C
         iAOtr = iAOtr + nBasI*(nBasI+1)/2
         iAOsq = iAOsq + nBasI*nBasI
       End Do
+
+      write (6,*) "one-electron integral"
+      IRC=-1
+      IOPT=6
+      ICOMP=1
+      ISYLBL=1
+      Label='OneHam  '
+      CALL RDONE(IRC,IOPT,Label,ICOMP,WORK(ipWRK2),ISYLBL)
+        Call Square(Work(ipwrk2),WoRK(ipwrk1),1,nbas(1),nbas(1))
+      do i = 1, nbas(1)
+        do j = 1, nbas(1)
+          write (6,'(2i3,f20.10)') i,j,work(ipWRK1+i-1+nbas(1)*(j-1))
+        end do
+      end do
 C
       Call GetMem('WRK1','Free','Real',ipWRK1,nBasSq)
       Call GetMem('WRK2','Free','Real',ipWRK2,nBasSq)
