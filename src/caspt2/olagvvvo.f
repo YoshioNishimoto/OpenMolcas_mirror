@@ -1060,69 +1060,87 @@ C
       Call Cholesky_Vectors(2,Inactive,Active,JSYM,CHSPC,nBra,
      *                      IBSTA,IBEND)
       IPQ = nAshI*nIshI
-      Do jVec = 1, NVEC
-        ! a. AI -> mu I
-        Call DGemm_('T','T',nIshI,nBasI,nAshI,
-     *              1.0D+00,CHSPC(1+IPQ*(jVec-1)),nAshI,
-     *                      CMO(1,1+nIshI),nBasI,
-     *              0.0D+00,HTSPC(1,1,jVec),nOrbI)
-        ! a. AI -> A mu
-        Call DGemm_('N','T',nAshI,nBasI,nIshI,
-     *              1.0D+00,CHSPC(1+IPQ*(jVec-1)),nAshI,
-     *                      CMO(1,1),nBasI,
-     *              0.0D+00,HTSPC(1+nIshI,1,jVec),nOrbI)
-      End Do
+      if (IPQ > 0) then
+        Do jVec = 1, NVEC
+          ! a. AI -> mu I
+          Call DGemm_('T','T',nIshI,nBasI,nAshI,
+     *                1.0D+00,CHSPC(1+IPQ*(jVec-1)),nAshI,
+     *                        CMO(1,1+nIshI),nBasI,
+     *                0.0D+00,HTSPC(1,1,jVec),nOrbI)
+          ! a. AI -> A mu
+          Call DGemm_('N','T',nAshI,nBasI,nIshI,
+     *                1.0D+00,CHSPC(1+IPQ*(jVec-1)),nAshI,
+     *                        CMO(1,1),nBasI,
+     *                0.0D+00,HTSPC(1+nIshI,1,jVec),nOrbI)
+        End Do
+      else
+        Do jVec = 1, NVEC
+          call dcopy_((nIshI+nAshI)*nBasI,[0.0D+00],0,
+     *                HTSPC(1,1,jVec),1)
+        End Do
+      end if
 C
       !! BraSI
       Call Cholesky_Vectors(2,Inactive,Virtual,JSYM,CHSPC,nBra,
      *                      IBSTA,IBEND)
       IPQ = nIshI*nSshI
-      Do jVec = 1, NVEC
-        ! b. SI -> mu I
-        Call DGemm_('T','T',nIshI,nBasI,nSshI,
-     *              1.0D+00,CHSPC(1+IPQ*(jVec-1)),nSshI,
-     *                      CMO(1,1+nIshI+nAshI),nBasI,
-     *              1.0D+00,HTSPC(1,1,jVec),nOrbI)
-        ! a. SI -> S mu
-        Call DGemm_('N','T',nSshI,nBasI,nIshI,
-     *              1.0D+00,CHSPC(1+IPQ*(jVec-1)),nSshI,
-     *                      CMO(1,1),nBasI,
-     *              0.0D+00,HTSPC(1+nIshI+nAshI,1,jVec),nOrbI)
-      End Do
+      if (IPQ > 0) then
+        Do jVec = 1, NVEC
+          ! b. SI -> mu I
+          Call DGemm_('T','T',nIshI,nBasI,nSshI,
+     *                1.0D+00,CHSPC(1+IPQ*(jVec-1)),nSshI,
+     *                        CMO(1,1+nIshI+nAshI),nBasI,
+     *                1.0D+00,HTSPC(1,1,jVec),nOrbI)
+          ! a. SI -> S mu
+          Call DGemm_('N','T',nSshI,nBasI,nIshI,
+     *                1.0D+00,CHSPC(1+IPQ*(jVec-1)),nSshI,
+     *                        CMO(1,1),nBasI,
+     *                0.0D+00,HTSPC(1+nIshI+nAshI,1,jVec),nOrbI)
+        End Do
+      else
+        Do jVec = 1, NVEC
+          call dcopy_(nSshI*nBasI,[0.0D+00],0,
+     *                HTSPC(1+nIshI+nAshI,1,jVec),1)
+        End Do
+      end if
 C
       !! BraSA
       Call Cholesky_Vectors(2,Active,Virtual,JSYM,CHSPC,nBra,
      *                      IBSTA,IBEND)
       IPQ = nAshI*nSshI
-      Do jVec = 1, NVEC
-        ! d. SA -> mu A
-        Call DGemm_('T','T',nAshI,nBasI,nSshI,
-     *              1.0D+00,CHSPC(1+IPQ*(jVec-1)),nSshI,
-     *                      CMO(1,1+nIshI+nAshI),nBasI,
-     *              1.0D+00,HTSPC(1+nIshI,1,jVec),nOrbI)
-        ! b. SA -> S mu
-        Call DGemm_('N','T',nSshI,nBasI,nAshI,
-     *              1.0D+00,CHSPC(1+IPQ*(jVec-1)),nSshI,
-     *                      CMO(1,1+nIshI),nBasI,
-     *              1.0D+00,HTSPC(1+nIshI+nAshI,1,jVec),nOrbI)
-      End Do
+      if (IPQ > 0) then
+        Do jVec = 1, NVEC
+          ! d. SA -> mu A
+          Call DGemm_('T','T',nAshI,nBasI,nSshI,
+     *                1.0D+00,CHSPC(1+IPQ*(jVec-1)),nSshI,
+     *                        CMO(1,1+nIshI+nAshI),nBasI,
+     *                1.0D+00,HTSPC(1+nIshI,1,jVec),nOrbI)
+          ! b. SA -> S mu
+          Call DGemm_('N','T',nSshI,nBasI,nAshI,
+     *                1.0D+00,CHSPC(1+IPQ*(jVec-1)),nSshI,
+     *                        CMO(1,1+nIshI),nBasI,
+     *                1.0D+00,HTSPC(1+nIshI+nAshI,1,jVec),nOrbI)
+        End Do
+      end if
 C
       !! BraAA
       Call Cholesky_Vectors(2,Active,Active,JSYM,CHSPC,nBra,
      *                      IBSTA,IBEND)
       IPQ = nAshI*nAshI
-      Do jVec = 1, NVEC
-        ! b. AA -> mu A
-        Call DGemm_('T','T',nAshI,nBasI,nAshI,
-     *              1.0D+00,CHSPC(1+IPQ*(jVec-1)),nAshI,
-     *                      CMO(1,1+nIshI),nBasI,
-     *              1.0D+00,HTSPC(1+nIshI,1,jVec),nOrbI)
-        ! c. AA -> A mu
-        Call DGemm_('N','T',nAshI,nBasI,nAshI,
-     *              1.0D+00,CHSPC(1+IPQ*(jVec-1)),nAshI,
-     *                      CMO(1,1+nIshI),nBasI,
-     *              1.0D+00,HTSPC(1+nIshI,1,jVec),nOrbI)
-      End Do
+      if (IPQ > 0) then
+        Do jVec = 1, NVEC
+          ! b. AA -> mu A
+          Call DGemm_('T','T',nAshI,nBasI,nAshI,
+     *                1.0D+00,CHSPC(1+IPQ*(jVec-1)),nAshI,
+     *                        CMO(1,1+nIshI),nBasI,
+     *                1.0D+00,HTSPC(1+nIshI,1,jVec),nOrbI)
+          ! c. AA -> A mu
+          Call DGemm_('N','T',nAshI,nBasI,nAshI,
+     *                1.0D+00,CHSPC(1+IPQ*(jVec-1)),nAshI,
+     *                        CMO(1,1+nIshI),nBasI,
+     *                1.0D+00,HTSPC(1+nIshI,1,jVec),nOrbI)
+        End Do
+      end if
 C
       End Subroutine VVVOTRA_RI
 C

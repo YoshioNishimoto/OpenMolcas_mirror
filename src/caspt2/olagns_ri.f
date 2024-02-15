@@ -490,8 +490,9 @@ C
      *              1.0D+00,WORK(LCMOPT3),nBasT,RDMWRK(1,1,i,j),nOrb(1),
      *              0.0D+00,WRK3,nBasT)
           ! 2nd
+          ! should be doubled
           call dgemm_('N','T',nBasT,nBasT,nOrb(1),
-     *                1.0D+00,WRK3,nBasT,WORK(LCMOPT3),nBasT,
+     *                2.0D+00,WRK3,nBasT,WORK(LCMOPT3),nBasT,
      *                1.0D+00,WRK2,nBasT)
           Write (LuGamma,Rec=nseq) (WRK2(k),k=1,nBasSq)
         end do
@@ -503,9 +504,9 @@ C
 
         call mma_allocate(RDMWRK,nBasT,nBasT,nBasT,nBasT,label='RDMWRK')
         call mma_allocate(WRK3,nBasSq,label='WRK3')
-        write (6,*) "2"
+C       write (6,*) "2"
         do i = 1, nBasT**2
-        write (6,*) "i = ", i
+C       write (6,*) "i = ", i
           Read (LuGamma,Rec=i) (WRK3(k),k=1,nBasSQ)
           call dcopy_(nBasSq,WRK3,1,RDMWRK(1,1,i,1),1)
         end do
@@ -537,9 +538,9 @@ C
           do j = 1, nBasT
             do k = 1, nBasT
               do l = 1, nBasT
-        RDMWRK(i,j,k,l) = RDMWRK(i,j,k,l)
-     * + 0.5d+00*WRK4(i,j)*WRK5(k,l)
-     * - 0.25d+00*WRK4(i,k)*WRK5(j,l)
+C       RDMWRK(i,j,k,l) = RDMWRK(i,j,k,l)
+C    * + 0.5d+00*WRK4(i,j)*WRK5(k,l)
+C    * - 0.25d+00*WRK4(i,k)*WRK5(j,l)
               end do
             end do
           end do
@@ -550,18 +551,18 @@ C
       eee = 0.0d+00
       norbtot = norbt + nfro(1)
 C     write (6,*) "one electron integral"
-      do i = 1, norbt
-      do j = 1, norbt
-      val1 = dpt2c(i+nfro(1)+norbtot*(j+nfro(1)-1))
-      nseq = max(i,j)*(max(i,j)-1)/2 + min(i,j)
-      val2 = work(lhone+nseq-1)
+C     do i = 1, norbt
+C     do j = 1, norbt
+C     val1 = dpt2c(i+nfro(1)+norbtot*(j+nfro(1)-1))
+C     nseq = max(i,j)*(max(i,j)-1)/2 + min(i,j)
+C     val2 = work(lhone+nseq-1)
 C     val2 = work(lfimo+nseq-1)
-C     write (6,'(2i3,3f20.10)') i,j,val1,val2,val1*val2
-C     write (6,'(2i3,1f20.10)') i,j,val2
-      eee = eee + val1*val2
-      end do
-      end do
-      write (6,*) "eee = ", eee*0.5d+00
+C     !write (6,'(2i3,3f20.10)') i,j,val1,val2,val1*val2
+C     !write (6,'(2i3,1f20.10)') i,j,val2
+C     eee = eee + val1*val2
+C     end do
+C     end do
+C     write (6,*) "eee = ", eee*0.5d+00
 
       do i = 1, nbast
       do j = 1, nbast
@@ -570,7 +571,7 @@ C     write (6,'(2i3,1f20.10)') i,j,val2
           val = rdmwrk(i,j,k,l) + rdmwrk(i,j,l,k)
      *        + rdmwrk(j,i,k,l) + rdmwrk(j,i,l,k)
      *        + rdmwrk(k,l,i,j) + rdmwrk(l,k,i,j)
-     *        + rdmwrk(k,l,j,i) + rdmwrk(l,k,i,j)
+     *        + rdmwrk(k,l,j,i) + rdmwrk(l,k,j,i)
           val = val/8.0d+00
           rdmwrk(i,j,k,l) = val
           rdmwrk(i,j,l,k) = val
@@ -579,21 +580,26 @@ C     write (6,'(2i3,1f20.10)') i,j,val2
           rdmwrk(k,l,i,j) = val
           rdmwrk(l,k,i,j) = val
           rdmwrk(k,l,j,i) = val
-          rdmwrk(l,k,i,j) = val
+          rdmwrk(l,k,j,i) = val
         end do
         end do
       end do
       end do
 
-        do i = 1, nBasT
-          do j = 1, nBasT
-            do k = 1, nBasT
-              do l = 1, nBasT
-        write (6,'(4i3,f20.10)') i,j,k,l,RDMWRK(i,j,k,l)
-              end do
-            end do
-          end do
+        do i = 1, nBasT**2
+          WRITE (LuGamma,Rec=i) (RDMWRK(k,1,i,1),k=1,nBasSQ)
         end do
+
+C     write (*,*) "RDM2 in olagns_ri"
+C       do i = 1, nBasT
+C         do j = 1, nBasT
+C           do k = 1, nBasT
+C             do l = 1, nBasT
+C       write (6,'(4i3,f20.10)') i,j,k,l,RDMWRK(i,j,k,l)
+C             end do
+C           end do
+C         end do
+C       end do
         Close (LuGAMMA)
 
         call mma_deallocate(RDMWRK)

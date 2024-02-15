@@ -426,9 +426,7 @@ if (DoExchange) then
     call Mult_with_Q_MP2(nBas_aux,nBas,nIrrep)
   else if (CASPT2) then
     call get_iscalar("do_RDM2",do_rdm2_glob)
-    write (6,*) "do_rdm2_glob = ", do_rdm2_glob
-    write (6,*) "method = ", method
-    if (do_rdm2_glob .and. Method == 'CASPT2') call mult_with_q_caspt22(Z_p_k,nash(0))
+    if (do_rdm2_glob .and. Method == 'CASPT2') call mult_with_q_caspt22(nash(0))
     call Mult_with_Q_CASPT2(nBas_aux,nBas,nIrrep,Chol .and. (.not. Do_RI))
   end if
 end if
