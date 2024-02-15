@@ -286,6 +286,7 @@ integer(kind=iwp), intent(in) :: nAct
 integer(kind=iwp), external :: IsFreeUnit
 integer(kind=iwp) :: nBasSq,it,iu,iv,ix,nseq1,nseq2,nseq3,nseq4,nseq5,nseq6,itu,ivx,ituvx,iact,jact,nsym,itx, &
                      ivu,itv,ixu
+integer(kind=iwp) :: indi(4)
 
 !real(kind=wp), pointer :: Xki(:), Xli(:)
 !type(V1) :: Xki2(2), Xki3(2), Xli2(2), Xli3(2)
@@ -429,32 +430,66 @@ do ivec = 1, 2
   end do
   end do
 
-  call mma_allocate(trfwrk ,nact,nact,nact   ,nbas(0),label='trfwrk')
-  call mma_allocate(trfwrk2,nact,nact,nbas(0),nbas(0),label='trfwrk2')
-  call dgemm_('N','N',nact**3,nbas(0),nact, &
-              1.0d+00,g2sq,nact**3,aorb(ivec)%sb(1)%a2(1,1),nact, &
-              0.0d+00,trfwrk,nact**3)
-  do i = 1, nbas(0)
-    call dgemm_('N','N',nact**2,nBas(0),nact, &
-              1.0D+00,trfwrk(1,1,1,i),nact**2,aorb(ivec)%sb(1)%a2(1,1),nact, &
-              0.0D+00,trfwrk2(1,1,1,i),nact**2)
-  end do
-  call mma_deallocate(trfwrk)
+  if (ivec.eq.1) then
+    call mma_allocate(trfwrk ,nact,nact,nact   ,nbas(0),label='trfwrk')
+    call mma_allocate(trfwrk2,nact,nact,nbas(0),nbas(0),label='trfwrk2')
+    call dgemm_('N','N',nact**3,nbas(0),nact, &
+                1.0d+00,g2sq,nact**3,aorb(ivec)%sb(1)%a2(1,1),nact, &
+                0.0d+00,trfwrk,nact**3)
+    do i = 1, nbas(0)
+      call dgemm_('N','N',nact**2,nBas(0),nact, &
+                1.0D+00,trfwrk(1,1,1,i),nact**2,aorb(ivec)%sb(1)%a2(1,1),nact, &
+                0.0D+00,trfwrk2(1,1,1,i),nact**2)
+    end do
+    call mma_deallocate(trfwrk)
 
-  call mma_allocate(B_t,nact*nbas(0),label="B_t")
+    call mma_allocate(B_t,nact*nbas(0),label="B_t")
 
-  do j = 1, nbas(0)
-  do i = 1, nbas(0)
-    call dgemm_('N','N',nact,nbas(0),nact, &
-                1.0d+00,trfwrk2(1,1,i,j),nact,aorb(ivec)%sb(1)%a2(1,1),nact, &
-                0.0d+00,b_t,nact)
-    call dgemm_('T','N',nbas(0),nbas(0),nact, &
-                1.0d+00,aorb(ivec)%sb(1)%a2(1,1),nact,b_t,nact, &
-                1.0d+00,RDMWRK(1,1,i,j),nbas(0))
-  end do
-  end do
-  call mma_deallocate(trfwrk2)
-  call mma_deallocate(B_t)
+    do j = 1, nbas(0)
+    do i = 1, nbas(0)
+      call dgemm_('N','N',nact,nbas(0),nact, &
+                  1.0d+00,trfwrk2(1,1,i,j),nact,aorb(ivec)%sb(1)%a2(1,1),nact, &
+                  0.0d+00,b_t,nact)
+      call dgemm_('T','N',nbas(0),nbas(0),nact, &
+                  1.0d+00,aorb(ivec)%sb(1)%a2(1,1),nact,b_t,nact, &
+                  1.0d+00,RDMWRK(1,1,i,j),nbas(0))
+    end do
+    end do
+    call mma_deallocate(trfwrk2)
+    call mma_deallocate(B_t)
+  else if (ivec.eq.2) then
+    !! ptrans_sa.f
+    do k = 1, 4
+      call icopy(4,[1],0,indi,1)
+      indi(k) = 2
+      call mma_allocate(trfwrk ,nact,nact,nact   ,nbas(0),label='trfwrk')
+      call mma_allocate(trfwrk2,nact,nact,nbas(0),nbas(0),label='trfwrk2')
+      call dgemm_('N','N',nact**3,nbas(0),nact, &
+                  1.0d+00,g2sq,nact**3,aorb(indi(4))%sb(1)%a2(1,1),nact, &
+                  0.0d+00,trfwrk,nact**3)
+      do i = 1, nbas(0)
+        call dgemm_('N','N',nact**2,nBas(0),nact, &
+                  1.0D+00,trfwrk(1,1,1,i),nact**2,aorb(indi(3))%sb(1)%a2(1,1),nact, &
+                  0.0D+00,trfwrk2(1,1,1,i),nact**2)
+      end do
+      call mma_deallocate(trfwrk)
+
+      call mma_allocate(B_t,nact*nbas(0),label="B_t")
+
+      do j = 1, nbas(0)
+      do i = 1, nbas(0)
+        call dgemm_('N','N',nact,nbas(0),nact, &
+                    1.0d+00,trfwrk2(1,1,i,j),nact,aorb(indi(2))%sb(1)%a2(1,1),nact, &
+                    0.0d+00,b_t,nact)
+        call dgemm_('T','N',nbas(0),nbas(0),nact, &
+                    1.0d+00,aorb(indi(1))%sb(1)%a2(1,1),nact,b_t,nact, &
+                    1.0d+00,RDMWRK(1,1,i,j),nbas(0))
+      end do
+      end do
+      call mma_deallocate(trfwrk2)
+      call mma_deallocate(B_t)
+    end do
+  end if
 end do
 
 call mma_deallocate(G2SQ)
