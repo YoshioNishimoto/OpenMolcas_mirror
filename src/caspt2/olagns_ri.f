@@ -564,27 +564,27 @@ C     end do
 C     end do
 C     write (6,*) "eee = ", eee*0.5d+00
 
-      do i = 1, nbast
-      do j = 1, nbast
-        do k= 1, nbast
-        do l = 1, nbast
-          val = rdmwrk(i,j,k,l) + rdmwrk(i,j,l,k)
-     *        + rdmwrk(j,i,k,l) + rdmwrk(j,i,l,k)
-     *        + rdmwrk(k,l,i,j) + rdmwrk(l,k,i,j)
-     *        + rdmwrk(k,l,j,i) + rdmwrk(l,k,j,i)
-          val = val/8.0d+00
-          rdmwrk(i,j,k,l) = val
-          rdmwrk(i,j,l,k) = val
-          rdmwrk(j,i,k,l) = val
-          rdmwrk(j,i,l,k) = val
-          rdmwrk(k,l,i,j) = val
-          rdmwrk(l,k,i,j) = val
-          rdmwrk(k,l,j,i) = val
-          rdmwrk(l,k,j,i) = val
-        end do
-        end do
-      end do
-      end do
+C     do i = 1, nbast
+C     do j = 1, nbast
+C       do k= 1, nbast
+C       do l = 1, nbast
+C         val = rdmwrk(i,j,k,l) + rdmwrk(i,j,l,k)
+C    *        + rdmwrk(j,i,k,l) + rdmwrk(j,i,l,k)
+C    *        + rdmwrk(k,l,i,j) + rdmwrk(l,k,i,j)
+C    *        + rdmwrk(k,l,j,i) + rdmwrk(l,k,j,i)
+C         val = val/8.0d+00
+C         rdmwrk(i,j,k,l) = val
+C         rdmwrk(i,j,l,k) = val
+C         rdmwrk(j,i,k,l) = val
+C         rdmwrk(j,i,l,k) = val
+C         rdmwrk(k,l,i,j) = val
+C         rdmwrk(l,k,i,j) = val
+C         rdmwrk(k,l,j,i) = val
+C         rdmwrk(l,k,j,i) = val
+C       end do
+C       end do
+C     end do
+C     end do
 
         do i = 1, nBasT**2
           WRITE (LuGamma,Rec=i) (RDMWRK(k,1,i,1),k=1,nBasSQ)

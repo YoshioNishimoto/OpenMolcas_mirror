@@ -1986,6 +1986,7 @@ C
       use ChoVec_io
       use Cholesky, only: InfVec, nDimRS
       use caspt2_gradient, only: LuGAMMA,LuAPT2,do_rdm2
+      use stdalloc, only: mma_allocate, mma_deallocate
 C
       Implicit Real*8 (A-H,O-Z)
 C
@@ -2001,6 +2002,7 @@ C
       integer nnbstr(8,3)
       Character*4096 RealName
       Logical is_error
+      real*8,allocatable :: RDMWRK(:,:,:,:)
 C
       ! INFVEC(I,J,K)=IWORK(ip_INFVEC-1+MAXVEC*N2*(K-1)+MAXVEC*(J-1)+I)
       call getritrfinfo(nnbstr,maxvec,n2)
@@ -2016,6 +2018,40 @@ C
       End Do
 C
       nBasI  = nBas(iSym)
+C
+      if (do_rdm2) then
+        call mma_allocate(RDMWRK,nBasI,nBasI,nBasI,nBasI,label='RDMWRK')
+        Call PrgmTranslate('GAMMA',RealName,lRealName)
+        LuGAMMA = isFreeUnit(LuGAMMA)
+        Call MOLCAS_Open_Ext2(LuGamma,RealName(1:lRealName),
+     &                       'DIRECT','UNFORMATTED',
+     &                        iost,.TRUE.,
+     &                        nBasI**2*8,'OLD',is_error)
+        do i = 1, nBasI**2
+          READ (LuGamma,Rec=i) (RDMWRK(k,1,i,1),k=1,nBasI**2)
+        end do
+
+        do i = 1, nBasI
+          do j = 1, nBasI
+            do k = 1, nBasI
+              do l = 1, nBasI
+                RDMWRK(i,j,k,l) = RDMWRK(i,j,k,l)
+     *            + 1.0d+00*DPT2AO(i+nBasI*(j-1))*SSDM(k+nBasI*(l-1))
+     *            - 0.5d+00*DPT2AO(i+nBasI*(k-1))*SSDM(j+nBasI*(l-1))
+              end do
+            end do
+          end do
+        end do
+
+        do i = 1, nBasI**2
+          WRITE (LuGamma,Rec=i) (RDMWRK(k,1,i,1),k=1,nBasI**2)
+        end do
+
+        call mma_deallocate(RDMWRK)
+        Close (LuGAMMA)
+
+        return
+      end if
 C
       Call GetMem('A_PT2 ','ALLO','REAL',ipA_PT2,NumChoTot**2)
 
