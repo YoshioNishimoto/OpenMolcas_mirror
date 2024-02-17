@@ -8,13 +8,14 @@
 * For more details see the full text of the license in the file        *
 * LICENSE or in <http://www.gnu.org/licenses/>.                        *
 ************************************************************************
-      SUBROUTINE DETCTL_GAS
+      SUBROUTINE DETCTL_GAS()
       use stdalloc, only: mma_allocate, mma_deallocate
-      use GLBBAS
+      use GLBBAS, only: SDREO_I, CONF_OCC, CONF_REO
       use Local_Arrays, only: CLBT, CLEBT, CI1BT, CIBT, CBLTP,
      &                        Allocate_Local_Arrays,
      &                      Deallocate_Local_Arrays
       use strbas
+      use rasscf_lucia, only: kvec3_length, Memory_Needed_Lucia
 
 *
       IMPLICIT REAL*8 (A-H, O-Z)
@@ -25,25 +26,19 @@
 #include "crun.fh"
 #include "cstate.fh"
 #include "cands.fh"
-!#include "cicisp.fh"
-      COMMON/CICISP/IDUMMY,NICISP,
-     &              NELCI(MXPICI),
-     &              XISPSM(MXPCSM,MXPICI),
-     &              ISMOST(MXPCSM,MXPCSM),MXSB,MXSOOB,
-     &              NBLKIC(MXPCSM,MXPICI),LCOLIC(MXPCSM,MXPICI),
-     &              MXNTTS,MXSOOB_AS
+#include "cicisp.fh"
 #include "cprnt.fh"
 #include "stinf.fh"
 #include "csm.fh"
 #include "spinfo_lucia.fh"
 #include "strinp.fh"
 #include "lucinp.fh"
-#include "rasscf_lucia.fh"
 
       INTEGER IOCCLS(1),IBASSPC(1)
       Integer, Allocatable:: LCIOIO(:)
       Integer, Allocatable:: SVST(:)
       Integer, Allocatable:: BASSPC(:)
+      Integer, Allocatable:: KLOCCLS(:)
 
 *. Set variables in cands.fh
       JSYM = IREFSM
@@ -243,11 +238,11 @@ c      END IF
      &     mxporb, nconf_per_open, npdtcnf, npcscnf, mults,
      &     nCSF_HEXS)
 
-      END
+      CALL mma_deallocate(KLOCCLS)
+
+      END SUBROUTINE DETCTL_GAS
 *
       SUBROUTINE DETCTL_FREE()
-      use stdalloc, only: mma_deallocate
-      use GLBBAS
       use strbas
       IMPLICIT REAL*8 (A-H, O-Z)
 #include "mxpdim.fh"
@@ -264,13 +259,11 @@ c      END IF
 #include "spinfo_lucia.fh"
 #include "strinp.fh"
 #include "lucinp.fh"
-#include "rasscf_lucia.fh"
 
-      CALL mma_deallocate(KLOCCLS)
 
       JSYM = IREFSM
       CALL CSFDIM_FREE(JSYM)
 
       CALL LUCIA2MOLCAS_FREE()
 
-      END
+      END SUBROUTINE DETCTL_FREE

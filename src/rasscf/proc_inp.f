@@ -54,6 +54,7 @@
      &                   ThrFThaw, Xsigma, dFMD
       use CMS, only: iCMSOpt,CMSGiveOpt,CMSGuessFile
       use UnixInfo, only: SuperName
+      use Lucia_Interface, only: Lucia_Util
       Implicit Real*8 (A-H,O-Z)
 #include "SysDef.fh"
 #include "rasdim.fh"
@@ -3594,7 +3595,7 @@ C Test read failed. JOBOLD cannot be used.
 #endif
 * Initialize LUCIA and determinant control
           Call StatusLine('RASSCF:','Initializing Lucia...')
-          CALL Lucia_Util('Ini',iDummy,iDummy,Dummy)
+          CALL Lucia_Util('Ini')
 * to get number of CSFs for GAS
 * and number of determinants to store
           nconf=0

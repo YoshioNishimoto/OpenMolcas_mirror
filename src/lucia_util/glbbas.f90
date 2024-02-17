@@ -28,6 +28,7 @@ Private
          Integer, Allocatable:: I(:)
       End Type  iArray
       Type (iArray), Target ::  SDREO_I(8)
+      Integer, Pointer:: SDREO(:)
       Type (iArray) ::  CONF_OCC(8), CONF_REO(8),                       &
      &                  PGINT1A(MXPOBS), PGINT1(MXPOBS)
       Type (iArray), Allocatable:: Z_PTDT(:), REO_PTDT(:)
@@ -35,18 +36,11 @@ Private
       Real*8,  Allocatable:: RHO1(:), SRHO1(:)
       Integer, Allocatable:: KINH1_NOCCSYM(:), KINH1(:)
 
-      Integer, Allocatable:: KLOCCLS(:)
-      Real*8,  Allocatable:: CI_VEC(:), SIGMA_VEC(:)
-      Integer, Pointer:: SDREO(:)
+      Real*8,  Allocatable, Target:: CI_VEC(:)
+      Real*8,  Allocatable:: SIGMA_VEC(:)
 
-      Public         INT1,       PINT1, PINT2, LSM1, LSM2, RHO1,        &
-     &                           VEC3,                KINH1,            &
-     &                              KLOCCLS,          PGINT1,           &
-     &               INT1O,      PGINT1A,                               &
-     &                     SRHO1,                                       &
-     &                                          KINH1_NOCCSYM,          &
-     &              CONF_OCC,CONF_REO,                                  &
-     &              DFTP,CFTP,DTOC,                                     &
-     &              SDREO_I,Z_PTDT,REO_PTDT
-      Public CI_VEC, SIGMA_VEC, SDREO
+      Public  INT1, PINT1, PINT2, LSM1, LSM2, RHO1, VEC3, KINH1,        &
+     &        PGINT1, INT1O, PGINT1A, SRHO1, KINH1_NOCCSYM,             &
+     &        CONF_OCC, CONF_REO, DFTP,CFTP,DTOC, SDREO_I, Z_PTDT,      &
+     &        REO_PTDT, CI_VEC, SIGMA_VEC, SDREO
 End Module GLBBAS

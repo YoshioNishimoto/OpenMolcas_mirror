@@ -8,7 +8,8 @@
 * For more details see the full text of the license in the file        *
 * LICENSE or in <http://www.gnu.org/licenses/>.                        *
 ************************************************************************
-      SUBROUTINE Lucia_Ini
+      SUBROUTINE Lucia_Ini()
+      use rasscf_lucia, only: Sigma_on_disk, ini_h0
 *
       implicit real*8 (a-h,o-z)
 C Input from RASSCF
@@ -26,7 +27,6 @@ C Input from RASSCF
 #include "oper.fh"
 #include "orbinp.fh"
 #include "gasstr.fh"
-#include "rasscf_lucia.fh"
 #include "memman.fh"
 C Other definitions
       PARAMETER(MXPKW = 125)
@@ -56,7 +56,7 @@ C =======================
 c      I_USE_SIMTRH = 0
 * Initialize flag to be used by densi_master to check whether the
 * sigma-vector is on disk.
-      iSigma_on_disk = 0
+      Sigma_on_disk = .FALSE.
 *
 C ===================
 C  Initialize isetkw

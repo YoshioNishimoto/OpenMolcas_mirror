@@ -9,7 +9,7 @@
 * LICENSE or in <http://www.gnu.org/licenses/>.                        *
 ************************************************************************
       SUBROUTINE diag_master()
-      use GLBBAS
+      use GLBBAS, only: INT1, INT1O
 *
 *  To do in this subroutine:
 *
@@ -25,7 +25,6 @@
 #include "cprnt.fh"
 #include "orbinp.fh"
 #include "cands.fh"
-#include "rasscf_lucia.fh"
 *
       INT1(:)=INT1O(:)
       CALL GASCI(ISSM, 1, IPRDIA, EREF, 0, 0)
